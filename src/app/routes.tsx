@@ -12,6 +12,9 @@ import { InstructionScreen3 } from "./components/InstructionScreen3";
 import { ProcessingScreen } from "./components/ProcessingScreen";
 import { ResultScreen } from "./components/ResultScreen";
 import { ReceiptScreen } from "./components/ReceiptScreen";
+import MobilePairingPage from "./components/MobilePairingPage";
+import PatientLoginPage from "./components/patient-portal/PatientLoginPage";
+import PatientProfilePage from "./components/patient-portal/PatientProfilePage";
 
 export const router = createBrowserRouter([
   {
@@ -20,6 +23,9 @@ export const router = createBrowserRouter([
     children: [
       { index: true, Component: WelcomeScreen },
       { path: "auth", Component: AuthScreen },
+      { path: "patient/login", Component: PatientLoginPage },
+      { path: "patient/profile", Component: PatientProfilePage },
+      { path: "pairing", Component: MobilePairingPage },
       { path: "questions/personal", Component: PersonalQuestionsScreen },
       { path: "questions/hypertension", Component: HypertensionQuestionsScreen },
       { path: "questions/diabetes", Component: DiabetesQuestionsScreen },
