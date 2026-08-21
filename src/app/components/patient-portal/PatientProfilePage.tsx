@@ -5,6 +5,7 @@ import {
   Download, Printer, LogOut, Heart, FileText, ChevronRight, AlertTriangle 
 } from "lucide-react";
 import apiService from "../../../../services/apiService";
+import { LogoutModal } from "./LogoutModal";
 
 interface ScreeningRecord {
   id: string;
@@ -68,6 +69,7 @@ const MOCK_RECORDS: ScreeningRecord[] = [
 
 export default function PatientProfilePage() {
   const navigate = useNavigate();
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [records, setRecords] = useState<ScreeningRecord[]>(MOCK_RECORDS);
   const [selectedRecord, setSelectedRecord] = useState<ScreeningRecord>(MOCK_RECORDS[0]);
   const [user, setUser] = useState<{ name: string; phone: string; gender: string; age: number }>({
@@ -121,13 +123,19 @@ export default function PatientProfilePage() {
             <span className="text-xs font-semibold">{user.name}</span>
             <span className="text-xs text-teal-400 font-mono">({user.phone})</span>
           </div>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-1.5 bg-red-500/20 text-red-300 hover:bg-red-500/30 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors"
-          >
-            <LogOut size={14} />
-            <span>ចាកចេញ</span>
-          </button>
+         <button
+        onClick={() => setIsLogoutModalOpen(true)}
+        className="flex items-center gap-1.5 bg-red-500/20 text-red-300 hover:bg-red-500/30 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors"
+      >
+        <LogOut size={14} />
+        <span>ចាកចេញ</span>
+      </button>
+
+      {/* Logout Modal Component */}
+      <LogoutModal 
+        isOpen={isLogoutModalOpen} 
+        onClose={() => setIsLogoutModalOpen(false)} 
+      />
         </div>
       </header>
 
