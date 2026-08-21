@@ -7,7 +7,6 @@ import {
   EyeOff,
   Heart,
   ArrowLeft,
-  ShieldCheck,
   AlertCircle,
 } from "lucide-react";
 import apiService from "../../../../services/apiService";
@@ -171,6 +170,13 @@ export default function PatientLoginPage() {
           </form>
 
           <div className="mt-5 text-center">
+            <button
+              onClick={() => navigate("/patient/register")}
+              className="text-xs text-teal-800 font-semibold hover:underline"
+            >
+              បង្កើតគណនីថ្មី (Register Account)
+            </button>
+
             <button
               onClick={() => navigate("/questions/personal")}
               className="text-xs text-teal-800 font-semibold hover:underline"

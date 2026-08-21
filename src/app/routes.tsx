@@ -15,6 +15,7 @@ import { ReceiptScreen } from "./components/ReceiptScreen";
 import MobilePairingPage from "./components/MobilePairingPage";
 import PatientLoginPage from "./components/patient-portal/PatientLoginPage";
 import PatientProfilePage from "./components/patient-portal/PatientProfilePage";
+import RegisterProfilePage  from "./components/patient-portal/RegisterProfilePage";
 
 export const router = createBrowserRouter([
   {
@@ -25,6 +26,7 @@ export const router = createBrowserRouter([
       { path: "auth", Component: AuthScreen },
       { path: "patient/login", Component: PatientLoginPage },
       { path: "patient/profile", Component: PatientProfilePage },
+      { path: "patient/register", Component: RegisterProfilePage },
       { path: "pairing", Component: MobilePairingPage },
       { path: "questions/personal", Component: PersonalQuestionsScreen },
       { path: "questions/hypertension", Component: HypertensionQuestionsScreen },
