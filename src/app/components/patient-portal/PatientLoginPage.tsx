@@ -53,18 +53,23 @@ export default function PatientLoginPage() {
       if (token) {
         localStorage.setItem("access_token", token);
         localStorage.setItem("user_info", JSON.stringify(user));
+        navigate("/patient/profile");
+      } else {
+        setError(
+          "លេខទូរស័ព្ទ ឬពាក្យសម្ងាត់មិនត្រឹមត្រូវ (Invalid credentials)",
+        );
       }
 
       // If user came from a Kiosk QR scan with session_id, pair immediately
-      if (sessionId) {
-        await apiService("/kch-api/api/v1/kiosk/session/claim", "POST", {
-          session_id: sessionId,
-          user_id: user.id || phone,
-        });
-        navigate(`/pair?session_id=${sessionId}&auto_paired=true`);
-      } else {
-        navigate("/patient/profile");
-      }
+      // if (sessionId) {
+      //   await apiService("/kch-api/api/v1/kiosk/session/claim", "POST", {
+      //     session_id: sessionId,
+      //     user_id: user.id || phone,
+      //   });
+      //   navigate(`/pair?session_id=${sessionId}&auto_paired=true`);
+      // } else {
+      //   navigate("/patient/profile");
+      // }
     } catch (err: any) {
       setError(
         err?.message ||
