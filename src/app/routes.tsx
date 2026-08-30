@@ -16,6 +16,7 @@ import MobilePairingPage from "./components/MobilePairingPage";
 import PatientLoginPage from "./components/patient-portal/PatientLoginPage";
 import PatientProfilePage from "./components/patient-portal/PatientProfilePage";
 import RegisterProfilePage  from "./components/patient-portal/RegisterProfilePage";
+import PaymentCheckoutPage from "./components/PaymentCheckoutPage";
 
 export const router = createBrowserRouter([
   {
@@ -23,6 +24,7 @@ export const router = createBrowserRouter([
     Component: Layout,
     children: [
       { index: true, Component: WelcomeScreen },
+      // { index: true, Component: PaymentCheckoutPage },
       { path: "auth", Component: AuthScreen },
       { path: "patient/login", Component: PatientLoginPage },
       { path: "patient/profile", Component: PatientProfilePage },
@@ -35,6 +37,7 @@ export const router = createBrowserRouter([
       { path: "instructions/1", Component: InstructionScreen },
       { path: "instructions/2", Component: InstructionScreen2 },
       { path: "instructions/3", Component: InstructionScreen3 },
+      { path: "payment", Component: PaymentCheckoutPage },
       { path: "processing", Component: ProcessingScreen },
       { path: "results", Component: ResultScreen },
       { path: "receipt", Component: ReceiptScreen },
