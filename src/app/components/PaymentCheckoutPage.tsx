@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   CreditCard,
@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   AlertCircle,
   Loader2,
+  ExternalLink,
 } from "lucide-react";
 import apiService from "../../../services/apiService";
 import { PurchaseRequest, AbaPurchaseResponse } from "../../types/payment";
@@ -24,8 +25,11 @@ export default function PaymentCheckoutPage() {
   const fee = parseFloat(searchParams.get("fee") || "2.5");
 
   const [loading, setLoading] = useState(false);
+  const [checkingStatus, setCheckingStatus] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [payData, setPayData] = useState<AbaPurchaseResponse | null>(null);
+
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // 1. Initialize Transaction from Backend
   const initiatePurchase = async () => {
@@ -36,7 +40,7 @@ export default function PaymentCheckoutPage() {
         patient_record_id: recordId,
         kiosk_device_id: kioskId,
         charge_fee: fee,
-        currency: "usd", // Must be uppercase USD
+        currency: "usd", // Backend normalizes to USD
         patient_name: patientName,
       };
 
@@ -68,10 +72,39 @@ export default function PaymentCheckoutPage() {
 
   useEffect(() => {
     initiatePurchase();
+
+    return () => {
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+    };
   }, []);
 
-  // 2. Launch ABA PayWay Popup / Checkout
-  const handleOpenAbaCheckout = () => {
+  // 2. Poll transaction status after checkout opens
+  const startStatusPolling = (tranId: string) => {
+    if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+
+    setCheckingStatus(true);
+    pollIntervalRef.current = setInterval(async () => {
+      try {
+        const res = await apiService(
+          `/kch-payment/api/payway/check-transaction/${tranId}`,
+          "GET",
+        );
+        const data = res?.data || res;
+        const statusCode = data?.data?.payment_status_code;
+
+        // 00 or 0 indicates payment approved
+        if (statusCode === 0 || statusCode === "00") {
+          if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+          navigate(`/payment/success?tran_id=${tranId}`);
+        }
+      } catch (e) {
+        console.warn("Polling check pending...", e);
+      }
+    }, 4000); // Check every 4 seconds
+  };
+
+  // 3. Launch ABA PayWay (Supports both Modal and New Tab Hosted Mode)
+  const handleOpenAbaCheckout = (mode: "popup" | "new_tab" = "popup") => {
     if (!payData) return;
 
     try {
@@ -95,9 +128,14 @@ export default function PaymentCheckoutPage() {
       const form = document.createElement("form");
       form.method = "POST";
       form.id = "aba_merchant_request";
-      form.target = "aba_webservice";
       form.action =
         "https://checkout-sandbox.payway.com.kh/api/payment-gateway/v1/payments/purchase";
+
+      if (mode === "new_tab") {
+        form.target = "_blank";
+      } else {
+        form.target = "aba_webservice";
+      }
 
       const fields: Record<string, string | number> = {
         req_time: payData.req_time,
@@ -105,7 +143,7 @@ export default function PaymentCheckoutPage() {
         tran_id: payData.tran_id,
         amount: String(payData.amount), // Ensures exact match (e.g. "2.50")
         items: payData.items || "",
-        shipping: payData.shipping || "",
+        shipping: payData.shipping || "0.00",
         firstname: payData.firstname || "",
         lastname: payData.lastname || "",
         email: payData.email || "",
@@ -125,7 +163,7 @@ export default function PaymentCheckoutPage() {
         google_pay_token: payData.google_pay_token || "",
         skip_success_page: payData.skip_success_page ?? 1,
         payment_gate: payData.payment_gate ?? 0,
-        view_type: payData.view_type || "popup",
+        view_type: mode === "new_tab" ? "hosted_view" : (payData.view_type || "popup"),
         hash: payData.hash,
       };
 
@@ -139,44 +177,25 @@ export default function PaymentCheckoutPage() {
 
       document.body.appendChild(form);
 
+      // Start listening for transaction completion
+      startStatusPolling(payData.tran_id);
 
-      // form.submit();
-      AbaPayway.checkout();
-      // Trigger checkout
-      // if (AbaPayway && typeof AbaPayway.checkout === "function") {
-      //   AbaPayway.checkout();
-      // } else {
-      //   form.submit();
-      // }
+      if (mode === "new_tab") {
+        form.submit();
+      } else {
+        // Trigger SDK checkout modal
+        // if (window.AbaPayway && typeof window.AbaPayway.checkout === "function") {
+        //   window.AbaPayway.checkout();
+        // } else {
+        //   form.submit();
+        // }
+        AbaPayway.checkout();
+
+      }
     } catch (err) {
       console.error("ABA Checkout Error:", err);
-      setError("Failed to open ABA PayWay checkout popup.");
+      setError("Failed to open ABA PayWay checkout.");
     }
-  };
-
-  // 2. Poll transaction status after checkout opens
-  const startStatusPolling = (tranId: string) => {
-    if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-
-    setCheckingStatus(true);
-    pollIntervalRef.current = setInterval(async () => {
-      try {
-        const res = await apiService(
-          `/kch-payment/api/payway/detail/${tranId}`,
-          "GET",
-        );
-        const data = res?.data || res;
-        const statusCode = data?.data?.payment_status_code;
-
-        // 00 or 0 indicates payment approved
-        if (statusCode === 0 || statusCode === "00") {
-          if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-          navigate(`/payment/success?tran_id=${tranId}`);
-        }
-      } catch (e) {
-        console.warn("Polling check pending...", e);
-      }
-    }, 4000); // Check every 4 seconds
   };
 
   return (
@@ -294,11 +313,11 @@ export default function PaymentCheckoutPage() {
             style={{ display: "none" }}
           />
 
-          {/* Action Trigger Button */}
+          {/* Action Trigger Button (Modal Popup) */}
           <button
             type="button"
             disabled={loading || !payData}
-            onClick={handleOpenAbaCheckout}
+            onClick={() => handleOpenAbaCheckout("popup")}
             className="w-full py-4 bg-[#00A884] hover:bg-[#008f70] active:scale-[0.98] text-white font-bold rounded-2xl shadow-lg transition-all text-sm flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {loading ? (
@@ -309,10 +328,28 @@ export default function PaymentCheckoutPage() {
             ) : (
               <>
                 <CreditCard size={18} />
-                <span>បង់ប្រាក់ឥឡូវនេះ (Pay with ABA KHQR)</span>
+                <span>បង់ប្រាក់ឥឡូវនេះ (Pay with ABA KHQR Popup)</span>
               </>
             )}
           </button>
+
+          {/* Action Trigger Button (New Tab Mode) */}
+          <button
+            type="button"
+            disabled={loading || !payData}
+            onClick={() => handleOpenAbaCheckout("new_tab")}
+            className="w-full mt-3 py-3 border border-slate-200 hover:bg-slate-50 active:scale-[0.98] text-slate-600 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            <ExternalLink size={15} />
+            <span>បើកផ្ទាំងទូទាត់ថ្មី (Open in New Tab)</span>
+          </button>
+
+          {checkingStatus && (
+            <div className="mt-4 flex items-center justify-center gap-2 text-xs text-teal-700 bg-teal-50 py-2.5 rounded-xl border border-teal-200">
+              <Loader2 size={14} className="animate-spin" />
+              <span>រង់ចាំការទូទាត់... (Listening for completed payment...)</span>
+            </div>
+          )}
         </div>
       </main>
 
