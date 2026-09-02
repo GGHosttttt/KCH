@@ -23,8 +23,8 @@ export const router = createBrowserRouter([
     path: "/",
     Component: Layout,
     children: [
-      { index: true, Component: WelcomeScreen },
-      // { index: true, Component: PaymentCheckoutPage },
+      // { index: true, Component: WelcomeScreen },
+      { index: true, Component: PaymentCheckoutPage },
       { path: "auth", Component: AuthScreen },
       { path: "patient/login", Component: PatientLoginPage },
       { path: "patient/profile", Component: PatientProfilePage },

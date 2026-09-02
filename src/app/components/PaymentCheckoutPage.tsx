@@ -124,6 +124,7 @@ export default function PaymentCheckoutPage() {
         additional_params: payData.additional_params || "",
         google_pay_token: payData.google_pay_token || "",
         skip_success_page: payData.skip_success_page ?? 1,
+        payment_gate: payData.payment_gate ?? 0,
         view_type: payData.view_type || "popup",
         hash: payData.hash,
       };
@@ -151,6 +152,31 @@ export default function PaymentCheckoutPage() {
       console.error("ABA Checkout Error:", err);
       setError("Failed to open ABA PayWay checkout popup.");
     }
+  };
+
+  // 2. Poll transaction status after checkout opens
+  const startStatusPolling = (tranId: string) => {
+    if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+
+    setCheckingStatus(true);
+    pollIntervalRef.current = setInterval(async () => {
+      try {
+        const res = await apiService(
+          `/kch-payment/api/payway/detail/${tranId}`,
+          "GET",
+        );
+        const data = res?.data || res;
+        const statusCode = data?.data?.payment_status_code;
+
+        // 00 or 0 indicates payment approved
+        if (statusCode === 0 || statusCode === "00") {
+          if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+          navigate(`/payment/success?tran_id=${tranId}`);
+        }
+      } catch (e) {
+        console.warn("Polling check pending...", e);
+      }
+    }, 4000); // Check every 4 seconds
   };
 
   return (
