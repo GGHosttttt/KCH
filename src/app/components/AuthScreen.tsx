@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import apiService from "../../../services/apiService";
+import { useCheckupStore } from "../../stores/useCheckupStore";
 
 interface SessionResponse {
   session_id: string;
@@ -32,9 +33,10 @@ interface WebSocketAuthPayload {
 
 export function AuthScreen() {
   const navigate = useNavigate();
+  const { setSessionId, setUser, updateQuestionnaire, resetCheckup } = useCheckupStore();
 
   // State
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  // const [sessionId, setSessionId] = useState<string | null>(null);
   const [qrValue, setQrValue] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -47,8 +49,8 @@ export function AuthScreen() {
   const socketRef = useRef<WebSocket | null>(null);
   const expiryTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const kiosk_id =
-    import.meta.env.KIOSK_DEVICE_ID || "a0d07c37-999c-460e-953e-4b21e1328c18";
+  const kiosk_id = import.meta.env.VITE_KIOSK_DEVICE_ID;
+
   // Initialize or Refresh QR Session
   const initKioskSession = async () => {
     try {
@@ -71,6 +73,7 @@ export function AuthScreen() {
 
       // Assuming handleResponse returns { data, status } or direct payload
       const sessionData: SessionResponse = res.data || res;
+      console.log("Session Data: ", sessionData);
 
       if (!sessionData?.session_id) {
         throw new Error("Invalid session response from server");
@@ -96,65 +99,61 @@ export function AuthScreen() {
 
   // WebSocket Listener
   const connectWebSocket = (sid: string) => {
-    const wsBaseUrl = (
-      import.meta.env.VITE_API_BASE_URL || "http://localhost:8000"
-    ).replace(/^http/, "ws");
+    const wsBaseUrl = import.meta.env.VITE_API_BASE_URL.replace(/^http/, "ws");
     const wsUrl = `${wsBaseUrl}/kch-api/ws/kiosk/${sid}`;
 
     const ws = new WebSocket(wsUrl);
     socketRef.current = ws;
 
-    ws.onopen = () => {
-      console.log(`[WS Connected] Listening for session: ${sid}`);
-    };
-
     ws.onmessage = (event) => {
       try {
-        const payload: WebSocketAuthPayload = JSON.parse(event.data);
+        const payload = JSON.parse(event.data);
 
-        console.log(payload);
-        if (payload.event === "AUTHENTICATED") {
-          // Store Auth Session Data
-          sessionStorage.setItem("authType", "phone");
-
-          console.log(payload.user);
-
-          if (payload.user) {
-            sessionStorage.setItem("userInfo", JSON.stringify(payload.user));
+        if (payload.event === "AUTHENTICATED" && payload.user) {
+          if (payload.token) {
+            sessionStorage.setItem("access_token", payload.token);
           }
+          const user = payload.user;
 
-          setPairedUser({
-            phone: payload.user?.phone,
-            name: payload.user?.name,
+          // 1. Save Session ID into Store
+          setSessionId(sid);
+
+          // 2. Save User into Store
+          setUser({
+            id: user.id,
+            fullname: user.name,
+            phone_number: user.phone,
+            gender: user.gender,
+            date_of_birth: user.dob,
+            is_guest: false,
           });
 
+          // 3. Pre-populate Questionnaire defaults from profile
+          if (user.gender) {
+            updateQuestionnaire({
+              gender: user.gender,
+            });
+          }
+
+          // 4. Update UI & Transition
+          setPairedUser({
+            phone: user.phone,
+            name: user.name,
+          });
           setPairedSuccess(true);
 
-          // Give user visual feedback for 1.8s then proceed to next step
           setTimeout(() => {
-            // navigate("/questions/personal");
-            navigate("/questions/hypertension");
+            navigate("/questions/personal");
           }, 1800);
-        } else if (payload.event === "expired") {
-          setError(
-            "QR Code បានផុតកំណត់ សូមបង្កើតថ្មី (QR Code expired, please refresh)",
-          );
         }
       } catch (e) {
         console.error("Error parsing WS message:", e);
       }
     };
-
-    ws.onerror = (err) => {
-      console.error("[WS Error]:", err);
-    };
-
-    ws.onclose = () => {
-      console.log("[WS Closed]");
-    };
   };
 
   useEffect(() => {
+    // resetCheckup();
     initKioskSession();
 
     return () => {
@@ -285,7 +284,7 @@ export function AuthScreen() {
                 {/* Footer Controls */}
                 <div className="w-full flex items-center justify-between border-t border-slate-100 pt-3 text-xs text-slate-400">
                   <span className="font-mono">
-                    Session: {sessionId ? `${sessionId.slice(0, 8)}...` : "—"}
+                    {/* Session: {sessionId} */}
                   </span>
                   <button
                     onClick={initKioskSession}

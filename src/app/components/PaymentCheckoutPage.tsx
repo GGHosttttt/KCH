@@ -9,38 +9,56 @@ import {
   Loader2,
   ExternalLink,
 } from "lucide-react";
-import apiService from "../../../services/apiService";
 import { PurchaseRequest, AbaPurchaseResponse } from "../../types/payment";
+import apiService from "../../../services/apiService";
+import { useCheckupStore } from "../../stores/useCheckupStore";
+
+declare global {
+  interface Window {
+    AbaPayway?: {
+      checkout: () => void;
+    };
+  }
+}
 
 export default function PaymentCheckoutPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const store = useCheckupStore();
 
-  // Retrieve parameters from router or query params
-  const recordId =
-    searchParams.get("record_id") || "3fa85f64-5717-4562-b3fc-2c963f66afa6";
+  // 1. Resolve Valid UUIDs
+  // Default to router param, env variable, or static default kiosk UUID
+  const defaultKioskUUID = "3fa85f64-5717-4562-b3fc-2c963f66afa6";
   const kioskId =
-    searchParams.get("kiosk_id") || "3fa85f64-5717-4562-b3fc-2c963f66afa6";
-  const patientName = searchParams.get("name") || "Walk-in Patient";
+    searchParams.get("kiosk_id") ||
+    import.meta.env.VITE_KIOSK_DEVICE_ID ||
+    defaultKioskUUID;
+
+  const patientName =
+    searchParams.get("name") || store.user?.fullname || "Walk-in Patient";
   const fee = parseFloat(searchParams.get("fee") || "2.5");
 
   const [loading, setLoading] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [recordId, setRecordId] = useState<string | null>(
+    searchParams.get("record_id") || sessionStorage.getItem("record_id"),
+  );
   const [payData, setPayData] = useState<AbaPurchaseResponse | null>(null);
 
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const assessmentTriggeredRef = useRef(false);
 
-  // 1. Initialize Transaction from Backend
-  const initiatePurchase = async () => {
+  // 2. Initialize PayWay Purchase with the created record ID
+  const initiatePurchase = async (activeRecordId: string) => {
     setLoading(true);
     setError(null);
     try {
       const payload: PurchaseRequest = {
-        patient_record_id: recordId,
+        patient_record_id: activeRecordId,
         kiosk_device_id: kioskId,
         charge_fee: fee,
-        currency: "usd", // Backend normalizes to USD
+        currency: "usd", // Must be uppercase USD
         patient_name: patientName,
       };
 
@@ -70,15 +88,75 @@ export default function PaymentCheckoutPage() {
     }
   };
 
+  // 3. Background Assessment & Sequenced Initiation
+  const runWorkflow = async () => {
+    if (assessmentTriggeredRef.current) return;
+    assessmentTriggeredRef.current = true;
+
+    try {
+      setLoading(true);
+
+      // Check if record_id is already known
+      let targetRecordId =
+        searchParams.get("record_id") || sessionStorage.getItem("record_id");
+
+      // Submit assessment if not submitted yet
+      if (!targetRecordId) {
+        const payload = store.getSubmissionPayload
+          ? store.getSubmissionPayload()
+          : {
+              kiosk_id: kioskId,
+              session_id: store.sessionId,
+              vitals: store.vitals,
+              questionnaire: store.questionnaire,
+            };
+
+        const res = await apiService(
+          "/kch-api/api/v1/assessment/submit?lang=km",
+          "POST",
+          payload,
+        );
+
+        const assessmentResult = res?.data || res;
+        const createdRecordId =
+          assessmentResult?.record_id || assessmentResult?.patient_record_id;
+
+        if (createdRecordId) {
+          targetRecordId = String(createdRecordId);
+          setRecordId(targetRecordId);
+          sessionStorage.setItem("record_id", targetRecordId);
+        }
+
+        if (assessmentResult) {
+          sessionStorage.setItem(
+            "kch_screening_result",
+            JSON.stringify(assessmentResult),
+          );
+        }
+      }
+
+      // If record_id is still missing, fallback to mock UUID to prevent schema validation failure
+      const finalRecordId = targetRecordId || defaultKioskUUID;
+      setRecordId(finalRecordId);
+
+      // Trigger purchase initiation with guaranteed non-null UUID
+      await initiatePurchase(finalRecordId);
+    } catch (err: any) {
+      console.error("Background assessment error:", err);
+      setError(err?.message || "Failed to process assessment");
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    initiatePurchase();
+    runWorkflow();
 
     return () => {
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
     };
   }, []);
 
-  // 2. Poll transaction status after checkout opens
+  // 4. Poll transaction status
   const startStatusPolling = (tranId: string) => {
     if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
 
@@ -89,26 +167,36 @@ export default function PaymentCheckoutPage() {
           `/kch-payment/api/payway/check-transaction/${tranId}`,
           "GET",
         );
-        const data = res?.data || res;
-        const statusCode = data?.data?.payment_status_code;
 
-        // 00 or 0 indicates payment approved
-        if (statusCode === 0 || statusCode === "00") {
+        const data = res?.data || res;
+        const isPaid = data?.data?.is_paid ?? data?.is_paid;
+        const statusCode =
+          data?.data?.payment_status_code ?? data?.payment_status_code;
+
+        if (
+          isPaid === true ||
+          statusCode === 0 ||
+          statusCode === "00" ||
+          statusCode === "0"
+        ) {
           if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-          navigate(`/payment/success?tran_id=${tranId}`);
+
+          const activeRecordId =
+            recordId || sessionStorage.getItem("record_id") || "";
+
+          navigate(`/results?record_id=${activeRecordId}&tran_id=${tranId}`);
         }
       } catch (e) {
         console.warn("Polling check pending...", e);
       }
-    }, 4000); // Check every 4 seconds
+    }, 4000);
   };
 
-  // 3. Launch ABA PayWay (Supports both Modal and New Tab Hosted Mode)
+  // 5. Open ABA PayWay Modal / Checkout
   const handleOpenAbaCheckout = (mode: "popup" | "new_tab" = "popup") => {
     if (!payData) return;
 
     try {
-      // Ensure target iframe exists for popup view
       let iframe = document.getElementById(
         "aba_webservice",
       ) as HTMLIFrameElement | null;
@@ -120,11 +208,9 @@ export default function PaymentCheckoutPage() {
         document.body.appendChild(iframe);
       }
 
-      // Remove any existing form to prevent duplicate ID collision
       const existingForm = document.getElementById("aba_merchant_request");
       if (existingForm) existingForm.remove();
 
-      // Create and populate form with exact keys matching the hash
       const form = document.createElement("form");
       form.method = "POST";
       form.id = "aba_merchant_request";
@@ -141,7 +227,7 @@ export default function PaymentCheckoutPage() {
         req_time: payData.req_time,
         merchant_id: payData.merchant_id,
         tran_id: payData.tran_id,
-        amount: String(payData.amount), // Ensures exact match (e.g. "2.50")
+        amount: String(payData.amount),
         items: payData.items || "",
         shipping: payData.shipping || "0.00",
         firstname: payData.firstname || "",
@@ -163,7 +249,8 @@ export default function PaymentCheckoutPage() {
         google_pay_token: payData.google_pay_token || "",
         skip_success_page: payData.skip_success_page ?? 1,
         payment_gate: payData.payment_gate ?? 0,
-        view_type: mode === "new_tab" ? "hosted_view" : (payData.view_type || "popup"),
+        view_type:
+          mode === "new_tab" ? "hosted_view" : payData.view_type || "popup",
         hash: payData.hash,
       };
 
@@ -171,26 +258,19 @@ export default function PaymentCheckoutPage() {
         const input = document.createElement("input");
         input.type = "hidden";
         input.name = key;
-        input.value = value === undefined || value === null ? "" : String(value);
+        input.value =
+          value === undefined || value === null ? "" : String(value);
         form.appendChild(input);
       });
 
       document.body.appendChild(form);
 
-      // Start listening for transaction completion
       startStatusPolling(payData.tran_id);
 
       if (mode === "new_tab") {
         form.submit();
       } else {
-        // Trigger SDK checkout modal
-        // if (window.AbaPayway && typeof window.AbaPayway.checkout === "function") {
-        //   window.AbaPayway.checkout();
-        // } else {
-        //   form.submit();
-        // }
         AbaPayway.checkout();
-
       }
     } catch (err) {
       console.error("ABA Checkout Error:", err);
@@ -223,7 +303,6 @@ export default function PaymentCheckoutPage() {
       {/* Main Payment Container */}
       <main className="w-full max-w-xl mx-auto my-auto z-10">
         <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-teal-800/20">
-          {/* Header */}
           <div className="text-center mb-6">
             <div className="w-14 h-14 bg-teal-50 text-[#00A884] rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-inner">
               <QrCode size={30} />
@@ -242,7 +321,7 @@ export default function PaymentCheckoutPage() {
               <div className="flex-1">
                 <p className="font-semibold">{error}</p>
                 <button
-                  onClick={initiatePurchase}
+                  onClick={runWorkflow}
                   className="mt-1 text-teal-700 underline font-bold"
                 >
                   ព្យាយាមម្តងទៀត (Retry)
@@ -260,7 +339,7 @@ export default function PaymentCheckoutPage() {
             <div className="flex justify-between items-center text-slate-500">
               <span>លេខកូដវិក្កយបត្រ (Tran ID):</span>
               <span className="font-mono font-bold text-teal-800">
-                {payData?.tran_id || "Generating..."}
+                {payData?.tran_id || (loading ? "Generating..." : "Ready")}
               </span>
             </div>
             <div className="flex justify-between items-center text-slate-500">
@@ -305,7 +384,6 @@ export default function PaymentCheckoutPage() {
             </span>
           </div>
 
-          {/* Hidden iframe required for ABA popup view */}
           <iframe
             name="aba_webservice"
             id="aba_webservice"
@@ -313,7 +391,7 @@ export default function PaymentCheckoutPage() {
             style={{ display: "none" }}
           />
 
-          {/* Action Trigger Button (Modal Popup) */}
+          {/* Modal Popup Button */}
           <button
             type="button"
             disabled={loading || !payData}
@@ -333,7 +411,7 @@ export default function PaymentCheckoutPage() {
             )}
           </button>
 
-          {/* Action Trigger Button (New Tab Mode) */}
+          {/* New Tab Mode Button */}
           <button
             type="button"
             disabled={loading || !payData}
@@ -347,7 +425,9 @@ export default function PaymentCheckoutPage() {
           {checkingStatus && (
             <div className="mt-4 flex items-center justify-center gap-2 text-xs text-teal-700 bg-teal-50 py-2.5 rounded-xl border border-teal-200">
               <Loader2 size={14} className="animate-spin" />
-              <span>រង់ចាំការទូទាត់... (Listening for completed payment...)</span>
+              <span>
+                រង់ចាំការទូទាត់... (Listening for completed payment...)
+              </span>
             </div>
           )}
         </div>

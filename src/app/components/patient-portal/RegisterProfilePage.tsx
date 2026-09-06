@@ -75,7 +75,7 @@ export default function RegisterProfilePage() {
         res?.status === 200 ||
         res?.data
       ) {
-        // navigate("/patient/login");
+        navigate("/patient/login");
       }
     } catch (err: any) {
       setError(

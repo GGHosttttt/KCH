@@ -1,20 +1,16 @@
 import { ErrorToast } from "../src/app/components/base/toast";
 
-// Helper to extract error message from standard or FastAPI/Pydantic payloads
 const extractErrorMessage = (data) => {
   if (!data) return "An unexpected error occurred.";
-  
-  // 1. FastAPI/Pydantic array error (e.g. [{ msg: '...', loc: [...] }])
+
   if (Array.isArray(data.detail)) {
     return data.detail.map((err) => err.msg).join(", ");
   }
 
-  // 2. FastAPI string detail (e.g. { detail: 'Unauthorized' })
   if (typeof data.detail === "string") {
     return data.detail;
   }
 
-  // 3. Custom backend format (e.g. { msg: '...' } or { message: '...' })
   if (data.msg) return data.msg;
   if (data.message) return data.message;
 
@@ -30,39 +26,45 @@ export function handleResponse(response) {
 
   const { status, data } = response;
 
-  // 1. Handle all successful 2xx responses
-  if (status >= 200 && status < 300) {
+  // Derive the effective status code (checks backend custom code first, then HTTP status)
+  const statusCode = data?.code || status;
+
+  // 1. Check if both HTTP status and payload code are successful
+  const isHttpOk = status >= 200 && status < 300;
+  const isBusinessOk = !data?.code || (data.code >= 200 && data.code < 300);
+
+  if (isHttpOk && isBusinessOk) {
     return data;
   }
 
   // 2. Extract error message safely
   const message = extractErrorMessage(data);
 
-  // 3. Handle specific error statuses
-  switch (status) {
+  // 3. Handle specific error statuses (using statusCode)
+  switch (statusCode) {
     case 400:
-      // Bad Request (validation errors, malformed payload)
       ErrorToast(message || "Invalid request.");
       break;
 
     case 401:
-      // Unauthorized (expired/missing token)
       ErrorToast(message || "Session expired. Please log in again.");
-      // if (typeof window !== "undefined") {
-      //   // Clear expired token if necessary: localStorage.removeItem("access_token");
-      //   setTimeout(() => {
-      //     window.location.href = "/login";
-      //   }, 1200);
-      // }
       break;
 
     case 403:
-      // Forbidden (insufficient permissions)
       ErrorToast(message || "You do not have permission to perform this action.");
       break;
 
     case 404:
       ErrorToast(message || "Requested resource not found.");
+      break;
+
+    case 409:
+      // Conflict (e.g., user_already_exists)
+      ErrorToast(
+        message === "user_already_exists"
+          ? "គណនីនេះមានរួចហើយ (User already exists)"
+          : message || "Conflict occurred."
+      );
       break;
 
     case 500:
@@ -71,5 +73,6 @@ export function handleResponse(response) {
       break;
   }
 
+  // Throw error to trigger the catch block in handleRegister
   throw new Error(message);
 }

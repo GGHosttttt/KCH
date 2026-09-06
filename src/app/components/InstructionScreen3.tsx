@@ -22,7 +22,8 @@ export function InstructionScreen3() {
 
   const handleNext = () => {
     if (sensorProgress >= 100) {
-      navigate("/processing");
+      // navigate("/processing");
+      navigate("/payment");
     }
   };
 
