@@ -33,6 +33,7 @@ export interface AbaPurchaseResponse {
   google_pay_token?: string;
   lifetime?: number;
   skip_success_page?: number;
+  payment_gate?: number;
   view_type?: "popup" | "hosted";
 }
 
