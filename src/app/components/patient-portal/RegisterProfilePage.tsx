@@ -292,7 +292,7 @@ export default function RegisterProfilePage() {
 
       {/* Footer Branding */}
       <footer className="text-center py-2 text-[11px] text-teal-200/60 z-10">
-        ក្រសួងសុខាភិបាល · Khmer Community Health (Primary Health Screening)
+        ទូរសុខភាពសហគមន៍ខ្មែរ · Khmer Community Health (Primary Health Screening)
       </footer>
     </div>
   );

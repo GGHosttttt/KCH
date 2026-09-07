@@ -144,7 +144,7 @@ export default function PatientProfilePage() {
             <Heart size={20} />
           </div>
           <div>
-            <h1 className="font-['Moul'] text-sm text-teal-100">ក្រសួងសុខាភិបាល · KCH</h1>
+            <h1 className="font-['Moul'] text-sm text-teal-100">ទូរសុខភាពសហគមន៍ខ្មែរ · KCH</h1>
             <p className="text-[11px] text-teal-300">ប្រព័ន្ធតាមដានសុខភាពបឋម (Patient Health Portal)</p>
           </div>
         </div>

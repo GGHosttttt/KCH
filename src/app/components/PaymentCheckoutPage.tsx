@@ -8,6 +8,7 @@ import {
   AlertCircle,
   Loader2,
   ExternalLink,
+  Activity
 } from "lucide-react";
 import { PurchaseRequest, AbaPurchaseResponse } from "../../types/payment";
 import apiService from "../../../services/apiService";
@@ -27,12 +28,9 @@ export default function PaymentCheckoutPage() {
   const store = useCheckupStore();
 
   // 1. Resolve Valid UUIDs
-  // Default to router param, env variable, or static default kiosk UUID
-  const defaultKioskUUID = "3fa85f64-5717-4562-b3fc-2c963f66afa6";
   const kioskId =
     searchParams.get("kiosk_id") ||
-    import.meta.env.VITE_KIOSK_DEVICE_ID ||
-    defaultKioskUUID;
+    import.meta.env.VITE_KIOSK_DEVICE_ID
 
   const patientName =
     searchParams.get("name") || store.user?.fullname || "Walk-in Patient";
@@ -279,30 +277,18 @@ export default function PaymentCheckoutPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#073B35] flex flex-col justify-between p-4 md:p-6 font-['Noto_Sans_Khmer',sans-serif] text-slate-800 relative overflow-hidden">
-      {/* Top Header */}
-      <header className="w-full max-w-xl mx-auto z-10 flex items-center justify-between">
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-1.5 text-teal-100 bg-white/10 backdrop-blur px-3.5 py-1.5 rounded-xl text-xs font-semibold hover:bg-white/20 transition-colors"
-        >
-          <ArrowLeft size={16} />
-          <span>ត្រឡប់ក្រោយ (Back)</span>
-        </button>
-
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-[#00A884] flex items-center justify-center text-white shadow-md">
-            <ShieldCheck size={16} />
-          </div>
-          <span className="text-white text-xs font-bold font-mono tracking-wider">
-            KCH Secure Pay
-          </span>
-        </div>
-      </header>
+    <div className="relative h-full w-full bg-gradient-to-br from-teal-800 to-teal-900 flex flex-col justify-between p-4 md:p-6 font-['Noto_Sans_Khmer',sans-serif] text-slate-800 ">
+      {/* Background patterns */}
+      <div className="absolute inset-0 opacity-10 pointer-events-none flex flex-wrap gap-12 items-center justify-center">
+        {[...Array(20)].map((_, i) => (
+          <Activity key={i} size={48} className="text-teal-200" />
+        ))}
+      </div>
 
       {/* Main Payment Container */}
       <main className="w-full max-w-xl mx-auto my-auto z-10">
         <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-teal-800/20">
+        
           <div className="text-center mb-6">
             <div className="w-14 h-14 bg-teal-50 text-[#00A884] rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-inner">
               <QrCode size={30} />
@@ -435,7 +421,8 @@ export default function PaymentCheckoutPage() {
 
       {/* Footer Branding */}
       <footer className="text-center py-2 text-[11px] text-teal-200/60 z-10">
-        ក្រសួងសុខាភិបាល · Khmer Community Health (Secure ABA PayWay Gateway)
+        ទូរសុខភាពសហគមន៍ខ្មែរ · Khmer Community Health (Secure ABA PayWay
+        Gateway)
       </footer>
     </div>
   );
