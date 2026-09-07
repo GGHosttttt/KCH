@@ -9,8 +9,10 @@ import {
   ArrowLeft,
   AlertCircle,
   Loader2,
+  Activity,
 } from "lucide-react";
 import apiService from "../../../../services/apiService";
+import logo from "../../../../src/assets/KCH-white-logo.png";
 
 export default function PatientLoginPage() {
   const navigate = useNavigate();
@@ -98,31 +100,40 @@ export default function PatientLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#073B35] flex flex-col justify-between p-4 font-['Noto_Sans_Khmer',sans-serif] relative overflow-hidden">
-      {/* Background Pulse Line */}
-      <div className="absolute inset-0 opacity-10 pointer-events-none flex items-center justify-center">
-        <Heart size={420} className="text-teal-300 stroke-[1]" />
+    <div className="min-h-screen bg-gradient-to-br from-teal-800 to-teal-900 flex flex-col justify-between p-4 font-['Noto_Sans_Khmer',sans-serif] relative overflow-hidden">
+      {/* Background patterns */}
+      <div className="absolute inset-0 opacity-10 pointer-events-none flex flex-wrap gap-12 items-center justify-center">
+        {[...Array(20)].map((_, i) => (
+          <Activity key={i} size={48} className="text-teal-200" />
+        ))}
       </div>
 
-      {/* Header */}
-      <div className="w-full max-w-md mx-auto pt-6 z-10 flex items-center justify-between">
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-1.5 text-teal-100 bg-white/10 backdrop-blur px-3 py-1.5 rounded-xl text-xs font-semibold hover:bg-white/20 transition-colors"
-        >
-          <ArrowLeft size={16} />
-          <span>ត្រឡប់ក្រោយ (Back)</span>
-        </button>
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-[#00A884] flex items-center justify-center text-white">
-            <Heart size={16} />
-          </div>
-          <span className="text-white text-xs font-bold font-mono">
-            KCH Mobile
-          </span>
+      <div className="absolute top-8 left-8 flex items-center space-x-4">
+        <div className="w-16 h-16 rounded-full flex items-center justify-center shadow-lg overflow-hidden">
+          <img
+            src={logo}
+            alt="Logo"
+            className="w-full h-full object-contain p-2"
+          />
+        </div>
+
+        <div>
+          <h2 className="font-['Moul'] text-xl tracking-wider text-teal-50">
+            ទូរសុខភាពសហគមន៍ខ្មែរ
+          </h2>
+          <p className="text-teal-200 text-sm">Khmer Community Health</p>
         </div>
       </div>
+
+      {/* <div className="z-10 text-center max-w-4xl ">
+        <div className="flex justify-center">
+          <Heart
+            size={80}
+            className="text-teal-300 drop-shadow-xl"
+            strokeWidth={1.5}
+          />
+        </div>
+      </div> */}
 
       {/* Form Card */}
       <div className="w-full max-w-md mx-auto my-auto z-10">
