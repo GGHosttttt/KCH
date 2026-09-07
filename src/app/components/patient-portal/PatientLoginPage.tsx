@@ -221,7 +221,7 @@ export default function PatientLoginPage() {
 
       {/* Footer */}
       <div className="text-center py-3 text-[11px] text-teal-200/60 z-10">
-        ក្រសួងសុខាភិបាល · Khmer Community Health Kiosk
+        ទូរសុខភាពសហគមន៍ខ្មែរ · Khmer Community Health Kiosk
       </div>
     </div>
   );
