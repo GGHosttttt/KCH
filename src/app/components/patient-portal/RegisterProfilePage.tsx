@@ -10,9 +10,11 @@ import {
   ArrowLeft,
   AlertCircle,
   ShieldCheck,
+  Activity
 } from "lucide-react";
 import apiService from "../../../../services/apiService";
 import { useNavigate } from "react-router-dom";
+import logo from "../../../../src/assets/KCH-white-logo.png";
 
 interface RegisterFormData {
   fullname: string;
@@ -88,31 +90,30 @@ export default function RegisterProfilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#073B35] flex flex-col justify-between p-4 md:p-6 font-['Noto_Sans_Khmer',sans-serif] relative overflow-hidden text-slate-800">
-      {/* Background Pulse Accent */}
-      <div className="absolute inset-0 opacity-10 pointer-events-none flex items-center justify-center">
-        <Heart size={480} className="text-teal-300 stroke-[1]" />
+    <div className="min-h-screen bg-gradient-to-br from-teal-800 to-teal-900 flex flex-col justify-between p-4 md:p-6 font-['Noto_Sans_Khmer',sans-serif] relative overflow-hidden text-slate-800">
+      {/* Background patterns */}
+      <div className="absolute inset-0 opacity-10 pointer-events-none flex flex-wrap gap-12 items-center justify-center">
+        {[...Array(20)].map((_, i) => (
+          <Activity key={i} size={48} className="text-teal-200" />
+        ))}
       </div>
 
-      {/* Top Header */}
-      <header className="w-full max-w-lg mx-auto z-10 flex items-center justify-between">
-        <a
-          href="/patient/login"
-          className="flex items-center gap-1.5 text-teal-100 bg-white/10 backdrop-blur px-3.5 py-1.5 rounded-xl text-xs font-semibold hover:bg-white/20 transition-colors"
-        >
-          <ArrowLeft size={16} />
-          <span>ត្រឡប់ក្រោយ (Back)</span>
-        </a>
-
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-[#00A884] flex items-center justify-center text-white shadow-md">
-            <Heart size={16} />
-          </div>
-          <span className="text-white text-xs font-bold font-mono tracking-wider">
-            KCH Portal
-          </span>
+      {/* <div className="absolute top-8 left-8 flex items-center space-x-4">
+        <div className="w-16 h-16 rounded-full flex items-center justify-center shadow-lg overflow-hidden">
+          <img
+            src={logo}
+            alt="Logo"
+            className="w-full h-full object-contain p-2"
+          />
         </div>
-      </header>
+
+        <div>
+          <h2 className="font-['Moul'] text-xl tracking-wider text-teal-50">
+            ទូរសុខភាពសហគមន៍ខ្មែរ
+          </h2>
+          <p className="text-teal-200 text-sm">Khmer Community Health</p>
+        </div>
+      </div> */}
 
       {/* Main Registration Card */}
       <main className="w-full max-w-lg mx-auto my-6 z-10">
