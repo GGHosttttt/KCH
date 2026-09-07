@@ -67,6 +67,7 @@ import { ReceiptScreen } from "./components/ReceiptScreen";
 import MobilePairingPage from "./components/MobilePairingPage";
 import PatientLoginPage from "./components/patient-portal/PatientLoginPage";
 import PatientProfilePage from "./components/patient-portal/PatientProfilePage";
+// import RecordDetailScreen from "./components/patient-portal/PatientProfilePage_V1";
 import RegisterProfilePage from "./components/patient-portal/RegisterProfilePage";
 
 export const router = createBrowserRouter([
