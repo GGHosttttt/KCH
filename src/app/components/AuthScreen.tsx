@@ -112,6 +112,7 @@ export function AuthScreen() {
         if (payload.event === "AUTHENTICATED" && payload.user) {
           if (payload.token) {
             sessionStorage.setItem("access_token", payload.token);
+            localStorage.setItem("access_token", payload.token);
           }
           const user = payload.user;
 

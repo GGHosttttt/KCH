@@ -132,9 +132,8 @@ export default function PaymentCheckoutPage() {
           );
         }
       }
-
       // If record_id is still missing, fallback to mock UUID to prevent schema validation failure
-      const finalRecordId = targetRecordId || defaultKioskUUID;
+      const finalRecordId = targetRecordId;
       setRecordId(finalRecordId);
 
       // Trigger purchase initiation with guaranteed non-null UUID
