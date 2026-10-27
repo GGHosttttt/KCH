@@ -33,7 +33,8 @@ interface WebSocketAuthPayload {
 
 export function AuthScreen() {
   const navigate = useNavigate();
-  const { setSessionId, setUser, updateQuestionnaire, resetCheckup } = useCheckupStore();
+  const { setSessionId, setUser, updateQuestionnaire, resetCheckup } =
+    useCheckupStore();
 
   // State
   // const [sessionId, setSessionId] = useState<string | null>(null);
@@ -49,7 +50,17 @@ export function AuthScreen() {
   const socketRef = useRef<WebSocket | null>(null);
   const expiryTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const kiosk_id = import.meta.env.VITE_KIOSK_DEVICE_ID;
+  const kiosk_id =
+    (window as any).kioskEnv?.getKioskId?.() ||
+    import.meta.env.VITE_KIOSK_DEVICE_ID ||
+    "KCH-001";
+
+  const frontend_origin =
+    (window as any).kioskEnv?.getFrontOrigin?.() ||
+    import.meta.env.VITE_FRONT_ORIGIN ||
+    (typeof window !== "undefined" && window.location.origin.startsWith("http")
+      ? window.location.origin
+      : "http://localhost:5173");
 
   // Initialize or Refresh QR Session
   const initKioskSession = async () => {
@@ -82,7 +93,7 @@ export function AuthScreen() {
       setSessionId(sessionData.session_id);
       setQrValue(
         sessionData.qr_url ||
-          `${window.location.origin}/pairing?session=${sessionData.session_id}`,
+          `${frontend_origin}/pairing?session=${sessionData.session_id}`,
       );
 
       // 3. Connect to WebSocket for instant pairing notifications

@@ -1,7 +1,9 @@
+// src/components/Layout.tsx
 import { Outlet, useLocation, useNavigate } from "react-router";
 import { useEffect, useState, useRef } from "react";
 import { Volume2, VolumeX, LifeBuoy, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import voiceGuide from "../../../services/voiceGuide";
 
 export function Layout() {
   const location = useLocation();
@@ -11,9 +13,7 @@ export function Layout() {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const isHome = location.pathname === "/" || location.pathname === "";
-
-  // Auto-timeout feature for privacy (resets to home if user walks away)
-  const INACTIVITY_LIMIT_MS = 10 * 60 * 1000; // 10 minutes (600,000 ms)
+  const INACTIVITY_LIMIT_MS = 10 * 60 * 1000; // 10 minutes
 
   const getAuthToken = () => {
     return localStorage.getItem("access_token");
@@ -21,26 +21,23 @@ export function Layout() {
 
   const resetTimer = () => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
-
     const token = getAuthToken();
-
-    // If a token exists or user is on the home screen, don't set a timer
     if (token || isHome) return;
 
-    // 10 minutes of inactivity for unauthenticated users = redirect to home
     timeoutRef.current = setTimeout(() => {
+      voiceGuide.stop();
       navigate("/");
     }, INACTIVITY_LIMIT_MS);
   };
 
+  // 1. Listen for user activity
   useEffect(() => {
-    // Attach event listeners for user activity
     window.addEventListener("mousemove", resetTimer);
     window.addEventListener("touchstart", resetTimer);
     window.addEventListener("click", resetTimer);
     window.addEventListener("keydown", resetTimer);
 
-    resetTimer(); // Initialize timer
+    resetTimer();
 
     return () => {
       window.removeEventListener("mousemove", resetTimer);
@@ -50,6 +47,27 @@ export function Layout() {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
   }, [location.pathname, isHome]);
+
+  // 2. Play audio step whenever the screen/route changes
+  useEffect(() => {
+    voiceGuide.playForRoute(location.pathname);
+
+    return () => {
+      voiceGuide.stop(); // Stop audio if component unmounts
+    };
+  }, [location.pathname]);
+
+  // 3. Handle Mute / Unmute Toggle
+  const handleToggleAudio = () => {
+    const nextState = !isAudioEnabled;
+    setIsAudioEnabled(nextState);
+    voiceGuide.setEnabled(nextState);
+
+    // If turned back on, replay current step's voice prompt
+    if (nextState) {
+      voiceGuide.playForRoute(location.pathname);
+    }
+  };
 
   return (
     <div className="min-h-[100dvh] w-full bg-slate-900 text-slate-800 font-['Battambang'] overflow-hidden flex items-center justify-center p-0 sm:p-4 md:p-8 relative">
@@ -64,7 +82,7 @@ export function Layout() {
             <motion.button
               initial={{ scale: 0, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              onClick={() => setIsAudioEnabled(!isAudioEnabled)}
+              onClick={handleToggleAudio}
               className={`w-16 h-16 rounded-full shadow-lg border-2 flex items-center justify-center active:scale-95 transition-all ${
                 isAudioEnabled
                   ? "bg-white border-teal-200 text-teal-700 hover:bg-teal-50"
@@ -79,7 +97,10 @@ export function Layout() {
               initial={{ scale: 0, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ delay: 0.1 }}
-              onClick={() => setShowHelpModal(true)}
+              onClick={() => {
+                voiceGuide.stop(); // Silence guidance during emergency call
+                setShowHelpModal(true);
+              }}
               className="w-16 h-16 bg-rose-600/95 backdrop-blur rounded-full shadow-[0_0_15px_rgba(225,29,72,0.5)] border-2 border-rose-400 flex items-center justify-center text-white hover:bg-rose-700 active:scale-95 transition-all"
             >
               <LifeBuoy size={32} />
@@ -99,17 +120,17 @@ export function Layout() {
                 animate={{ height: [8, 16, 8] }}
                 transition={{ repeat: Infinity, duration: 1 }}
                 className="w-1 bg-teal-400 rounded-full"
-              ></motion.div>
+              />
               <motion.div
                 animate={{ height: [12, 24, 12] }}
                 transition={{ repeat: Infinity, duration: 1.2, delay: 0.1 }}
                 className="w-1 bg-teal-400 rounded-full"
-              ></motion.div>
+              />
               <motion.div
                 animate={{ height: [8, 16, 8] }}
                 transition={{ repeat: Infinity, duration: 1.1, delay: 0.2 }}
                 className="w-1 bg-teal-400 rounded-full"
-              ></motion.div>
+              />
             </div>
             <span className="text-teal-100 text-sm font-bold tracking-wide">
               ជំនួយសំឡេងកំពុងបើក (Voice Guide On)
@@ -145,7 +166,11 @@ export function Layout() {
                 </span>
               </p>
               <button
-                onClick={() => setShowHelpModal(false)}
+                onClick={() => {
+                  setShowHelpModal(false);
+                  if (isAudioEnabled)
+                    voiceGuide.playForRoute(location.pathname);
+                }}
                 className="w-full py-4 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold rounded-xl transition-colors text-xl"
               >
                 បិទ (Close)
