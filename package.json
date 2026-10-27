@@ -1,11 +1,48 @@
 {
-  "name": "@figma/my-make-file",
+  "name": "kch-kiosk-interface",
   "private": true,
   "version": "0.0.1",
   "type": "module",
+  "main": "electron/main.cjs",
   "scripts": {
+    "dev": "vite",
     "build": "vite build",
-    "dev": "vite"
+    "electron:dev": "concurrently -k \"npm run dev\" \"wait-on tcp:5173 && electron . --dev\"",
+    "electron:preview": "npm run build && electron .",
+    "electron:dist": "npm run build && electron-builder"
+  },
+  "build": {
+    "appId": "kh.gov.kch.kiosk",
+    "productName": "KCH Kiosk Interface",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "runAfterFinish": true,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico"
+    }
   },
   "dependencies": {
     "@emotion/react": "11.14.0",
@@ -71,8 +108,13 @@
   "devDependencies": {
     "@tailwindcss/vite": "4.1.12",
     "@vitejs/plugin-react": "4.7.0",
+    "concurrently": "^10.0.6",
+    "electron": "^44.7.2",
+    "electron-builder": "^26.15.3",
     "tailwindcss": "4.1.12",
-    "vite": "^6.4.3"
+    "typescript": "^7.0.2",
+    "vite": "^6.4.3",
+    "wait-on": "^9.5.1"
   },
   "peerDependencies": {
     "react": "18.3.1",

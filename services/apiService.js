@@ -10,7 +10,10 @@ const apiService = async (
   body = null,
   customHeaders = {},
 ) => {
-  const baseUrl = import.meta.env.VITE_API_BASE_URL;
+  // 👈 Only this line changes: check native Electron config first, fallback to Vite env
+  const baseUrl =
+    window.kioskEnv?.getApiUrl?.() || import.meta.env.VITE_API_BASE_URL || "";
+
   const url = `${baseUrl}${endpoint}`;
 
   const headers = { ...customHeaders };
@@ -49,11 +52,13 @@ const apiService = async (
     // Check if HTTP status is outside 200-299 range
     if (!response.ok) {
       const error = new Error(
-        responseData?.msg || responseData?.message || `HTTP Error ${response.status}`
+        responseData?.msg ||
+          responseData?.message ||
+          `HTTP Error ${response.status}`,
       );
       error.status = response.status;
       error.data = responseData;
-      throw error; // This jumps straight to the catch block
+      throw error;
     }
 
     return handleResponse({
@@ -62,7 +67,7 @@ const apiService = async (
     });
   } catch (error) {
     console.error("API Error:", error);
-    throw error; // Re-throw to caller's catch block
+    throw error;
   }
 };
 
