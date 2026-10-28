@@ -9,10 +9,20 @@ const apiService = async (
   method = "GET",
   body = null,
   customHeaders = {},
+  target = "cloud",
 ) => {
-  // 👈 Only this line changes: check native Electron config first, fallback to Vite env
-  const baseUrl =
+  // Resolve Cloud URL: Desktop Electron config -> Vite env -> Default
+  const cloudUrl =
     window.kioskEnv?.getApiUrl?.() || import.meta.env.VITE_API_BASE_URL || "";
+
+  // Resolve Local URL: Native/custom env -> fallback to localhost port (e.g. 8000 or 3000)
+  const localUrl =
+    window.kioskEnv?.getLocalApiUrl?.() ||
+    import.meta.env.VITE_LOCAL_API_BASE_URL ||
+    "http://localhost:8000";
+
+  // Choose base URL according to target
+  const baseUrl = target === "local" ? localUrl : cloudUrl;
 
   const url = `${baseUrl}${endpoint}`;
 

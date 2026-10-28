@@ -16,7 +16,6 @@ import QRCode from "qrcode";
 import apiService from "../../../services/apiService";
 import { useCheckupStore } from "../../stores/useCheckupStore";
 
-
 interface ScreeningRecordDetail {
   id: string;
   age: number;
@@ -62,6 +61,13 @@ export function ReceiptScreen() {
   const [autoExitSeconds, setAutoExitSeconds] = useState(60);
   const [voiceGuide, setVoiceGuide] = useState(true);
 
+  const frontend_origin =
+    (window as any).kioskEnv?.getFrontOrigin?.() ||
+    import.meta.env.VITE_FRONT_ORIGIN ||
+    (typeof window !== "undefined" && window.location.origin.startsWith("http")
+      ? window.location.origin
+      : "http://localhost:5173");
+
   const fallbackName = sessionStorage.getItem("userName") || "Walk-in Patient";
 
   // 1. Fetch Record Details from API
@@ -87,7 +93,7 @@ export function ReceiptScreen() {
         setLoading(true);
         const res = await apiService(
           `/kch-api/api/v1/assessment/records/${recordId}`,
-          "GET"
+          "GET",
         );
         const data: ScreeningRecordDetail = res?.data || res;
         setRecord(data);
@@ -106,7 +112,7 @@ export function ReceiptScreen() {
   useEffect(() => {
     if (!recordId) return;
 
-    const targetUrl = `${window.location.origin}/results?record_id=${recordId}`;
+    const targetUrl = `${frontend_origin}/results?record_id=${recordId}`;
 
     QRCode.toDataURL(targetUrl, {
       width: 130,
@@ -146,6 +152,19 @@ export function ReceiptScreen() {
     window.print();
   };
 
+  // Inside ReceiptScreen.tsx
+  useEffect(() => {
+    const receiptAudioUrl = sessionStorage.getItem("tts_receipt_audio");
+    if (receiptAudioUrl) {
+      const player = new Audio(receiptAudioUrl);
+      player.play().catch(console.warn);
+
+      return () => {
+        player.pause();
+      };
+    }
+  }, []);
+
   if (loading) {
     return (
       <div className="h-full w-full bg-slate-100 flex flex-col items-center justify-center gap-3 font-['Noto_Sans_Khmer',sans-serif]">
@@ -182,8 +201,8 @@ export function ReceiptScreen() {
     record.gender === "male"
       ? "Male"
       : record.gender === "female"
-      ? "Female"
-      : "--";
+        ? "Female"
+        : "--";
   const dateStr = record.created_at
     ? new Date(record.created_at).toLocaleDateString()
     : new Date().toLocaleDateString();
@@ -283,9 +302,7 @@ export function ReceiptScreen() {
             </div>
             <div className="flex justify-between">
               <span className="text-slate-500">BMI:</span>
-              <span className="font-bold text-slate-800">
-                {r.bmi ?? "--"}
-              </span>
+              <span className="font-bold text-slate-800">{r.bmi ?? "--"}</span>
             </div>
           </div>
 
