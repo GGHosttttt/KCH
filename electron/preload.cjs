@@ -37,6 +37,7 @@ if (fs.existsSync(configPath)) {
 contextBridge.exposeInMainWorld("kioskEnv", {
   getKioskId: () => config?.kiosk_device_id || config?.kiosk_id || null,
   getApiUrl: () => config?.api_url || null,
+  getLocalApiUrl: () => config?.api_local_url || null,
   getFrontOrigin: () => config?.front_origin || null,
   isConfigured: () => Boolean((config?.kiosk_device_id || config?.kiosk_id) && config?.api_url),
 });

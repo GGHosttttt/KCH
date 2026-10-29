@@ -8,7 +8,7 @@ import {
   AlertCircle,
   Loader2,
   ExternalLink,
-  Activity
+  Activity,
 } from "lucide-react";
 import { PurchaseRequest, AbaPurchaseResponse } from "../../types/payment";
 import apiService from "../../../services/apiService";
@@ -19,6 +19,12 @@ declare global {
     AbaPayway?: {
       checkout: () => void;
     };
+    kioskEnv?: {
+      getKioskId?: () => string;
+      getApiUrl?: () => string;
+      getLocalApiUrl?: () => string;
+    };
+    kioskId?: string;
   }
 }
 
@@ -27,10 +33,11 @@ export default function PaymentCheckoutPage() {
   const [searchParams] = useSearchParams();
   const store = useCheckupStore();
 
-  // 1. Resolve Valid UUIDs
+  // 1. Resolve Kiosk ID (Query Param -> Native Electron window -> Vite .env -> Default UUID)
   const kioskId =
     searchParams.get("kiosk_id") ||
-    import.meta.env.VITE_KIOSK_DEVICE_ID
+    window.kioskEnv?.getKioskId?.() ||
+    import.meta.env.VITE_KIOSK_DEVICE_ID;
 
   const patientName =
     searchParams.get("name") || store.user?.fullname || "Walk-in Patient";
@@ -47,7 +54,51 @@ export default function PaymentCheckoutPage() {
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const assessmentTriggeredRef = useRef(false);
 
-  // 2. Initialize PayWay Purchase with the created record ID
+  // 2. Fetch Latest Hardware Readings from Station Local Daemon
+  const syncHardwareStationData = async () => {
+    try {
+      const stationRes = await apiService(
+        "/api/station",
+        "GET",
+        null,
+        {},
+        "local",
+      );
+      const stationResults = stationRes?.results || stationRes?.data?.results;
+
+      if (stationResults) {
+        // Merge station results into the checkup vitals store
+        const updatedVitals: Record<string, any> = {};
+
+        if (stationResults.heightCm) {
+          updatedVitals.height_cm = Number(stationResults.heightCm);
+        }
+        if (stationResults.weightKg) {
+          updatedVitals.weight_kg = Number(stationResults.weightKg);
+        }
+        if (stationResults.heartRate) {
+          updatedVitals.heart_rate_bpm = Number(stationResults.heartRate);
+        }
+        if (stationResults.spo2) {
+          updatedVitals.spo2_percent = Number(stationResults.spo2);
+        }
+
+        // Keep existing BP and pulse readings if manually entered
+        if (Object.keys(updatedVitals).length > 0) {
+          store.updateVitals(updatedVitals);
+          return {
+            ...store.vitals,
+            ...updatedVitals,
+          };
+        }
+      }
+    } catch (err) {
+      console.warn("Station hardware fetch skipped or daemon offline:", err);
+    }
+    return store.vitals;
+  };
+
+  // 3. Initialize PayWay Purchase with the created record ID
   const initiatePurchase = async (activeRecordId: string) => {
     setLoading(true);
     setError(null);
@@ -56,7 +107,7 @@ export default function PaymentCheckoutPage() {
         patient_record_id: activeRecordId,
         kiosk_device_id: kioskId,
         charge_fee: fee,
-        currency: "usd", // Must be uppercase USD
+        currency: "usd", // Backend normalizes to uppercase USD
         patient_name: patientName,
       };
 
@@ -86,7 +137,7 @@ export default function PaymentCheckoutPage() {
     }
   };
 
-  // 3. Background Assessment & Sequenced Initiation
+  // 4. Background Assessment & Sequenced Initiation
   const runWorkflow = async () => {
     if (assessmentTriggeredRef.current) return;
     assessmentTriggeredRef.current = true;
@@ -94,20 +145,21 @@ export default function PaymentCheckoutPage() {
     try {
       setLoading(true);
 
+      // 4a. Query station daemon to capture any final hardware results
+      const resolvedVitals = await syncHardwareStationData();
+
       // Check if record_id is already known
       let targetRecordId =
         searchParams.get("record_id") || sessionStorage.getItem("record_id");
 
-      // Submit assessment if not submitted yet
+      // 4b. Submit assessment if not submitted yet
       if (!targetRecordId) {
-        const payload = store.getSubmissionPayload
-          ? store.getSubmissionPayload()
-          : {
-              kiosk_id: kioskId,
-              session_id: store.sessionId,
-              vitals: store.vitals,
-              questionnaire: store.questionnaire,
-            };
+        const payload = {
+          kiosk_id: kioskId,
+          session_id: store.sessionId,
+          vitals: resolvedVitals || store.vitals,
+          questionnaire: store.questionnaire,
+        };
 
         const res = await apiService(
           "/kch-api/api/v1/assessment/submit?lang=km",
@@ -132,11 +184,12 @@ export default function PaymentCheckoutPage() {
           );
         }
       }
-      // If record_id is still missing, fallback to mock UUID to prevent schema validation failure
-      const finalRecordId = targetRecordId;
+
+      // If record_id is still missing, fallback to prevent validation failure
+      const finalRecordId = targetRecordId || defaultKioskUUID;
       setRecordId(finalRecordId);
 
-      // Trigger purchase initiation with guaranteed non-null UUID
+      // Trigger purchase initiation
       await initiatePurchase(finalRecordId);
     } catch (err: any) {
       console.error("Background assessment error:", err);
@@ -153,7 +206,7 @@ export default function PaymentCheckoutPage() {
     };
   }, []);
 
-  // 4. Poll transaction status
+  // 5. Poll transaction status
   const startStatusPolling = (tranId: string) => {
     if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
 
@@ -189,7 +242,7 @@ export default function PaymentCheckoutPage() {
     }, 4000);
   };
 
-  // 5. Open ABA PayWay Modal / Checkout
+  // 6. Open ABA PayWay Modal / Checkout
   const handleOpenAbaCheckout = (mode: "popup" | "new_tab" = "popup") => {
     if (!payData) return;
 
@@ -267,7 +320,11 @@ export default function PaymentCheckoutPage() {
       if (mode === "new_tab") {
         form.submit();
       } else {
-        AbaPayway.checkout();
+        if (AbaPayway && typeof AbaPayway.checkout === "function") {
+          AbaPayway.checkout();
+        } else {
+          form.submit();
+        }
       }
     } catch (err) {
       console.error("ABA Checkout Error:", err);
@@ -276,7 +333,7 @@ export default function PaymentCheckoutPage() {
   };
 
   return (
-    <div className="relative h-full w-full bg-gradient-to-br from-teal-800 to-teal-900 flex flex-col justify-between p-4 md:p-6 font-['Noto_Sans_Khmer',sans-serif] text-slate-800 ">
+    <div className="relative h-full w-full bg-gradient-to-br from-teal-800 to-teal-900 flex flex-col justify-between p-4 md:p-6 font-['Noto_Sans_Khmer',sans-serif] text-slate-800">
       {/* Background patterns */}
       <div className="absolute inset-0 opacity-10 pointer-events-none flex flex-wrap gap-12 items-center justify-center">
         {[...Array(20)].map((_, i) => (
@@ -287,7 +344,6 @@ export default function PaymentCheckoutPage() {
       {/* Main Payment Container */}
       <main className="w-full max-w-xl mx-auto my-auto z-10">
         <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-teal-800/20">
-        
           <div className="text-center mb-6">
             <div className="w-14 h-14 bg-teal-50 text-[#00A884] rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-inner">
               <QrCode size={30} />

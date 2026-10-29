@@ -1,119 +1,278 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
+import { useEffect, useState, useRef } from "react";
+import { useNavigate, useSearchParams } from "react-router";
 import { motion } from "motion/react";
-import { Activity, Brain, Cpu, Database } from "lucide-react";
+import { Brain, Database, Cpu, Volume2 } from "lucide-react";
+import apiService from "../../../services/apiService";
+import { useCheckupStore } from "../../stores/useCheckupStore";
 
 export function ProcessingScreen() {
   const navigate = useNavigate();
-  const [progress, setProgress] = useState(0);
+  const [searchParams] = useSearchParams();
+  const store = useCheckupStore();
 
+  const recordId =
+    searchParams.get("record_id") ||
+    sessionStorage.getItem("patient_record_id") ||
+    sessionStorage.getItem("record_id");
+
+  // Visual smooth display values
+  const [displayProgress, setDisplayProgress] = useState(0);
+  const [statusText, setStatusText] = useState(
+    "កំពុងប្រមូលទិន្នន័យពីឧបករណ៍វាស់វែង...",
+  );
+
+  // Progress interpolation refs
+  const targetProgressRef = useRef(10);
+  const currentProgressRef = useRef(0);
+  const animationFrameRef = useRef<number | null>(null);
+  const pipelineDoneRef = useRef(false);
+
+  // 1. Smooth RAF Interpolation Loop (Eliminates Jitter)
   useEffect(() => {
-    const duration = 5000; // 5 seconds processing
-    const interval = 50;
-    const steps = duration / interval;
-    let currentStep = 0;
-
-    const timer = setInterval(() => {
-      currentStep++;
-      setProgress(Math.min(100, Math.round((currentStep / steps) * 100)));
-      if (currentStep >= steps) {
-        clearInterval(timer);
-        navigate("/results");
+    const updateProgress = () => {
+      if (currentProgressRef.current < targetProgressRef.current) {
+        // Smooth linear increment
+        currentProgressRef.current += Math.max(
+          0.4,
+          (targetProgressRef.current - currentProgressRef.current) * 0.08,
+        );
+        const rounded = Math.min(100, Math.floor(currentProgressRef.current));
+        setDisplayProgress(rounded);
       }
-    }, interval);
 
-    return () => clearInterval(timer);
-  }, [navigate]);
+      // Check if ready to navigate to results
+      if (currentProgressRef.current >= 99 && pipelineDoneRef.current) {
+        setDisplayProgress(100);
+        setTimeout(() => {
+          navigate(recordId ? `/results?record_id=${recordId}` : "/results");
+        }, 500);
+        return;
+      }
+
+      animationFrameRef.current = requestAnimationFrame(updateProgress);
+    };
+
+    animationFrameRef.current = requestAnimationFrame(updateProgress);
+
+    return () => {
+      if (animationFrameRef.current)
+        cancelAnimationFrame(animationFrameRef.current);
+    };
+  }, [navigate, recordId]);
+
+  // 2. Real Background Processing Pipeline
+  useEffect(() => {
+    let isMounted = true;
+
+    async function executeProcessing() {
+      try {
+        // Stage 1: Data preparation
+        targetProgressRef.current = 30;
+        setStatusText("កំពុងទាញយកទិន្នន័យសុខភាព និងលទ្ធផលវាយតម្លៃ...");
+
+        let assessmentResult: any = null;
+        const cached = sessionStorage.getItem("kch_screening_result");
+        if (cached) {
+          try {
+            assessmentResult = JSON.parse(cached);
+          } catch {
+            // ignore
+          }
+        }
+
+        if (!assessmentResult && recordId) {
+          const res = await apiService(
+            `/kch-api/api/v1/records/${recordId}`,
+            "GET",
+          );
+          assessmentResult = res?.data || res;
+        }
+
+        // Stage 2: AI Clinical analysis
+        targetProgressRef.current = 65;
+        setStatusText("ម៉ាស៊ីន AI កំពុងវិភាគហានិភ័យ និងបង្កើតសំឡេងណែនាំ...");
+
+        const v = store.vitals || assessmentResult?.vitals || {};
+        const r = assessmentResult?.result || {};
+
+        const ttsPayload = {
+          record_id: recordId,
+          patient_name:
+            store.user?.fullname || assessmentResult?.patient_name || "លោកអ្នក",
+          bmi: r.bmi != null ? Number(r.bmi) : null,
+          bmi_category: r.bmi_category,
+          systolic: v.systolic_mmhg,
+          diastolic: v.diastolic_mmhg,
+          pulse: v.pulse_bpm || v.heart_rate_bpm,
+          bp_category: r.bp_category,
+          glucose_mgdl: v.fpg_mgdl || v.rpg_mgdl,
+          glucose_category: r.glucose_category,
+          health_recommendation: r.health_recommendation,
+          workout_recommendation: r.workout_recommendation,
+          engine: "edge",
+        };
+
+        // Stage 3: Audio Synthesis
+        try {
+          const ttsRes = await apiService(
+            "/kch-ai/api/v1/tts/checkup-narration",
+            "POST",
+            ttsPayload,
+          );
+          const ttsData = ttsRes?.data || ttsRes;
+
+          if (ttsData?.results_audio_b64) {
+            sessionStorage.setItem(
+              "tts_results_audio",
+              `data:audio/mp3;base64,${ttsData.results_audio_b64}`,
+            );
+          }
+          if (ttsData?.receipt_audio_b64) {
+            sessionStorage.setItem(
+              "tts_receipt_audio",
+              `data:audio/mp3;base64,${ttsData.receipt_audio_b64}`,
+            );
+          }
+        } catch (audioErr) {
+          console.warn("TTS deferred to results page:", audioErr);
+        }
+
+        // Stage 4: Finish
+        if (!isMounted) return;
+        targetProgressRef.current = 100;
+        setStatusText("ការវិភាគបានបញ្ចប់ជាស្ថាពរ!");
+        pipelineDoneRef.current = true;
+      } catch (err) {
+        console.error("Pipeline error:", err);
+        if (!isMounted) return;
+        targetProgressRef.current = 100;
+        pipelineDoneRef.current = true;
+      }
+    }
+
+    executeProcessing();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [recordId, store]);
+
+  // Dynamic Dash Array calculation for circle
+  const radius = 96;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset =
+    circumference - (displayProgress / 100) * circumference;
 
   return (
-    <div className="flex flex-col items-center justify-center h-full w-full bg-[#0B1120] relative overflow-hidden">
-      {/* Dynamic Mesh Background */}
-      <div className="absolute inset-0 opacity-50 pointer-events-none">
-        <motion.div
-          animate={{ x: [-50, 50, -50], y: [-50, 50, -50], scale: [1, 1.2, 1] }}
-          transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
-          className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-teal-600/30 rounded-full blur-[120px]"
-        />
-        <motion.div
-          animate={{ x: [50, -50, 50], y: [50, -50, 50], scale: [1.2, 1, 1.2] }}
-          transition={{ duration: 12, repeat: Infinity, ease: "linear" }}
-          className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-emerald-600/20 rounded-full blur-[100px]"
-        />
-        <motion.div
-          animate={{ scale: [1, 1.5, 1], opacity: [0.3, 0.6, 0.3] }}
-          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute top-[40%] left-[40%] w-[20%] h-[20%] bg-blue-600/20 rounded-full blur-[80px]"
-        />
+    <div className="flex flex-col items-center justify-center min-h-screen w-full bg-[#0B1120] relative overflow-hidden font-['Noto_Sans_Khmer',sans-serif] select-none text-white pb-24">
+      {/* Optimized Background Glows (Using GPU layer to prevent stuttering) */}
+      <div className="absolute inset-0 opacity-30 pointer-events-none transform-gpu">
+        <div className="absolute -top-1/4 -left-1/4 w-[60vw] h-[60vw] bg-teal-600/25 rounded-full blur-[100px]" />
+        <div className="absolute -bottom-1/4 -right-1/4 w-[50vw] h-[50vw] bg-emerald-600/20 rounded-full blur-[100px]" />
       </div>
 
-      <div className="z-10 text-center mb-12">
-        <div className="inline-flex items-center space-x-3 bg-teal-500/10 border border-teal-500/30 text-teal-300 px-6 py-2 rounded-full mb-8 backdrop-blur-md">
-          <Brain size={20} className="animate-pulse" />
-          <span className="font-mono text-sm tracking-widest uppercase">Khmer Health AI Engine</span>
+      {/* Header Badge */}
+      <div className="z-10 text-center mb-6 px-4">
+        <div className="inline-flex items-center space-x-2 bg-teal-500/10 border border-teal-500/30 text-teal-300 px-4 py-1.5 rounded-full mb-3 backdrop-blur-md">
+          <Brain size={16} className="text-teal-400" />
+          <span className="font-mono text-xs tracking-wider uppercase">
+            Khmer Health AI Engine
+          </span>
         </div>
-        <h1 className="font-['Moul'] text-4xl text-white mb-4 drop-shadow-[0_0_15px_rgba(45,212,191,0.4)]">
+        <h1 className="font-['Moul'] text-2xl md:text-3xl text-white mb-2 drop-shadow-md">
           ប្រព័ន្ធ AI កំពុងវិភាគទិន្នន័យសុខភាព
         </h1>
-        <p className="text-xl text-slate-400 font-light">Synthesizing multidimensional health metrics...</p>
+        <p className="text-xs md:text-sm text-slate-400 font-light max-w-md mx-auto min-h-[20px]">
+          {statusText}
+        </p>
       </div>
 
-      <div className="relative flex items-center justify-center mb-16 z-10 w-80 h-80">
-        {/* Futuristic Hexagon/Radar Rings */}
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-          className="absolute inset-0 border-2 border-dashed border-teal-500/30 rounded-full"
-        />
-        <motion.div
-          animate={{ rotate: -360 }}
-          transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
-          className="absolute inset-4 border border-teal-400/20 rounded-full"
-        />
-        
-        {/* Core AI Orb */}
-        <div className="absolute inset-8 rounded-full bg-[#0B1120]/60 backdrop-blur-xl border border-white/10 shadow-[0_0_50px_rgba(45,212,191,0.15)] flex items-center justify-center overflow-hidden">
-          <motion.div 
-            animate={{ scale: [0.95, 1.05, 0.95] }}
-            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute inset-0 bg-gradient-to-tr from-teal-500/10 to-emerald-500/10"
+      {/* Smooth Circular Progress Gauge */}
+      <div className="relative flex items-center justify-center mb-8 z-10 w-64 h-64">
+        <svg className="w-full h-full transform -rotate-90">
+          {/* Track Circle */}
+          <circle
+            cx="128"
+            cy="128"
+            r={radius}
+            stroke="currentColor"
+            strokeWidth="8"
+            fill="transparent"
+            className="text-slate-800"
           />
-          
-          <div className="text-center z-10 flex items-baseline">
-            <span className="text-7xl font-bold font-mono text-transparent bg-clip-text bg-gradient-to-b from-white to-teal-200 drop-shadow-lg">
-              {progress}
-            </span>
-            <span className="text-teal-400 text-2xl font-bold ml-1">%</span>
-          </div>
+          {/* Animated Progress Circle */}
+          <circle
+            cx="128"
+            cy="128"
+            r={radius}
+            stroke="url(#gradient)"
+            strokeWidth="8"
+            strokeDasharray={circumference}
+            strokeDashoffset={strokeDashoffset}
+            strokeLinecap="round"
+            fill="transparent"
+            className="transition-all duration-75 ease-out"
+          />
+          <defs>
+            <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#2dd4bf" />
+              <stop offset="100%" stopColor="#10b981" />
+            </linearGradient>
+          </defs>
+        </svg>
 
-          {/* Scanning Line */}
-          <motion.div
-            animate={{ top: ['-10%', '110%', '-10%'] }}
-            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute w-full h-1 bg-teal-400/80 shadow-[0_0_20px_rgba(45,212,191,1)] z-20 left-0"
-          />
+        {/* Central Counter */}
+        <div className="absolute inset-4 rounded-full bg-[#0B1120]/80 backdrop-blur-md flex flex-col items-center justify-center">
+          <div className="flex items-baseline">
+            <span className="text-6xl font-black font-mono text-white tracking-tighter">
+              {displayProgress}
+            </span>
+            <span className="text-teal-400 text-xl font-bold ml-1 font-mono">
+              %
+            </span>
+          </div>
         </div>
       </div>
 
-      <div className="z-10 grid grid-cols-3 gap-6 max-w-3xl w-full px-8">
+      {/* Stage Cards */}
+      <div className="z-10 grid grid-cols-3 gap-3 max-w-xl w-full px-6">
         {[
-          { icon: Database, label: "Data Pipeline", stat: "100%", desc: "Syncing records" },
-          { icon: Activity, label: "Vitals Check", stat: progress > 30 ? "Complete" : "Analyzing", desc: "BP & Pulse" },
-          { icon: Cpu, label: "AI Prediction", stat: progress > 70 ? "Complete" : "Calculating", desc: "Glucose & Risk" }
+          {
+            icon: Database,
+            label: "Data Pipeline",
+            desc: "Sync Records",
+            done: displayProgress >= 30,
+          },
+          {
+            icon: Cpu,
+            label: "AI Prediction",
+            desc: "Calculate Risk",
+            done: displayProgress >= 65,
+          },
+          {
+            icon: Volume2,
+            label: "Audio Synthesis",
+            desc: "Sreymom Voice",
+            done: displayProgress >= 95,
+          },
         ].map((item, idx) => (
-          <div key={idx} className="bg-white/5 backdrop-blur-md border border-white/10 p-5 rounded-2xl flex flex-col items-center text-center shadow-2xl transition-all duration-500 relative overflow-hidden group">
-            {/* Status Glow */}
-            <div className={`absolute top-0 left-0 w-full h-1 transition-colors duration-500 ${item.stat === "Complete" || item.stat === "100%" ? "bg-teal-500" : "bg-transparent"}`} />
-            
-            <item.icon size={32} className={`mb-3 transition-colors duration-500 ${item.stat === "Complete" || item.stat === "100%" ? "text-teal-400" : "text-slate-500 animate-pulse"}`} />
-            <h3 className="text-white font-bold text-lg mb-1">{item.label}</h3>
-            <p className="text-slate-400 text-sm mb-3">{item.desc}</p>
-            <div className="mt-auto px-4 py-1.5 bg-black/40 rounded-lg text-sm font-mono text-teal-300 border border-teal-500/20 w-full">
-              {item.stat}
-            </div>
+          <div
+            key={idx}
+            className={`bg-white/5 backdrop-blur-md border rounded-2xl p-3 flex flex-col items-center text-center transition-all duration-300 ${
+              item.done ? "border-teal-500/50 bg-teal-500/5" : "border-white/10"
+            }`}
+          >
+            <item.icon
+              size={22}
+              className={`mb-1.5 transition-colors ${
+                item.done ? "text-teal-400" : "text-slate-500"
+              }`}
+            />
+            <h3 className="text-white font-bold text-xs">{item.label}</h3>
+            <p className="text-slate-400 text-[10px]">{item.desc}</p>
           </div>
         ))}
       </div>
     </div>
   );
 }
-

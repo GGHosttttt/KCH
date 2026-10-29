@@ -1,17 +1,20 @@
+// src/services/voiceGuide.js
+
 export const ROUTE_AUDIO_MAP = {
-  "/": "/audio/welcome.wav",
-  "/auth": "/audio/auth.wav",
-  "/questions/personal": "/audio/questions_personal.wav",
-  "/questions/hypertension": "/audio/questions_hypertension.wav",
-  "/questions/diabetes": "/audio/questions_diabetes.wav",
-  "/handwash": "/audio/handwash.wav",
-  "/instructions/1": "/audio/instruction_bp.wav",
-  "/instructions/2": "/audio/instruction_ppg.wav",
-  "/instructions/3": "/audio/instruction_scale.wav",
-  "/payment": "/audio/payment.wav",
-  "/processing": "/audio/processing.wav",
-  "/results": "/audio/results.wav",
-  "/receipt": "/audio/receipt.wav",
+  "/": "/audio/welcome.mp3",
+  "/auth": "/audio/auth.mp3",
+  "/questions/personal": "/audio/questions_personal.mp3",
+  "/questions/hypertension": "/audio/questions_hypertension.mp3",
+  "/questions/diabetes": "/audio/questions_diabetes.mp3",
+  "/handwash": "/audio/handwash.mp3",
+  "/instructions/1": "/audio/instruction_scale.mp3",
+  "/instructions/2": "/audio/instruction_bp.mp3",
+  "/instructions/3": "/audio/instruction_ppg.mp3",
+  "/payment": "/audio/payment.mp3",
+  "/processing": "/audio/processing.mp3",
+  // Fallbacks if dynamic TTS is not ready:
+  "/results": "/audio/results.mp3",
+  "/receipt": "/audio/receipt.mp3",
 };
 
 class VoiceGuideManager {
@@ -20,10 +23,6 @@ class VoiceGuideManager {
     this.isEnabled = true;
   }
 
-  /**
-   * Enable or disable voice instructions globally.
-   * @param {boolean} enabled
-   */
   setEnabled(enabled) {
     this.isEnabled = Boolean(enabled);
     if (!this.isEnabled) {
@@ -31,50 +30,53 @@ class VoiceGuideManager {
     }
   }
 
-  /**
-   * Check if voice guidance is enabled.
-   * @returns {boolean}
-   */
   getEnabled() {
     return this.isEnabled;
   }
 
   /**
-   * Plays the audio associated with a given pathname.
-   * @param {string} pathname - e.g. "/auth" or "/questions/personal"
+   * Plays either the dynamically generated audio from sessionStorage or falls back to static files.
+   * @param {string} pathname 
    */
   playForRoute(pathname) {
     this.stop();
 
     if (!this.isEnabled) return;
 
-    const audioSrc = ROUTE_AUDIO_MAP[pathname];
-    if (!audioSrc) return;
+    // 1. Check for dynamic audio generated for Results & Receipt screens
+    if (pathname.includes("/results")) {
+      const dynamicResults = sessionStorage.getItem("tts_results_audio");
+      if (dynamicResults) {
+        this.playAudioSource(dynamicResults);
+        return;
+      }
+    }
 
-    this.playAudioSource(audioSrc);
+    if (pathname.includes("/receipt")) {
+      const dynamicReceipt = sessionStorage.getItem("tts_receipt_audio");
+      if (dynamicReceipt) {
+        this.playAudioSource(dynamicReceipt);
+        return;
+      }
+    }
+
+    // 2. Fall back to static route audio
+    const staticSrc = ROUTE_AUDIO_MAP[pathname];
+    if (staticSrc) {
+      this.playAudioSource(staticSrc);
+    }
   }
 
-  /**
-   * Plays an audio file directly from a URL or Blob object URL (e.g. from Gemini TTS).
-   * @param {string} audioUrl
-   */
-  playCustom(audioUrl) {
+  playCustom(audioSource) {
     this.stop();
-
-    if (!this.isEnabled || !audioUrl) return;
-
-    this.playAudioSource(audioUrl);
+    if (!this.isEnabled || !audioSource) return;
+    this.playAudioSource(audioSource);
   }
 
-  /**
-   * Internal helper to load and play an audio stream.
-   * @private
-   */
   playAudioSource(src) {
     try {
       this.currentAudio = new Audio(src);
 
-      // Listeners for proper lifecycle handling
       this.currentAudio.onended = () => {
         this.currentAudio = null;
       };
@@ -82,11 +84,7 @@ class VoiceGuideManager {
       const playPromise = this.currentAudio.play();
       if (playPromise !== undefined) {
         playPromise.catch((err) => {
-          // Autoplay policy or user cancellation
-          console.warn(
-            `[voiceGuide] Audio playback prevented for ${src}:`,
-            err.message,
-          );
+          console.warn(`[voiceGuide] Playback prevented for ${src.slice(0, 40)}:`, err.message);
         });
       }
     } catch (err) {
@@ -94,9 +92,6 @@ class VoiceGuideManager {
     }
   }
 
-  /**
-   * Immediately silences and unloads the active audio clip.
-   */
   stop() {
     if (this.currentAudio) {
       try {
@@ -111,6 +106,5 @@ class VoiceGuideManager {
   }
 }
 
-// Export a singleton instance for use across the entire application
 export const voiceGuide = new VoiceGuideManager();
 export default voiceGuide;
