@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import {
   Eye,
@@ -9,13 +9,11 @@ import {
   UserCircle2,
   Loader2,
   AlertCircle,
-  Activity,
-  Volume2,
-  VolumeX,
 } from "lucide-react";
 import { motion } from "motion/react";
 import apiService from "../../../services/apiService";
 import { useCheckupStore } from "../../stores/useCheckupStore";
+import voiceGuide from "../../../services/voiceGuide";
 
 interface ScreeningRecordDetail {
   id: string;
@@ -52,7 +50,7 @@ interface ScreeningRecordDetail {
   };
 }
 
-// ── Color & Theme Resolver ──
+// ── Color & Theme Helpers ──
 type LevelTheme = {
   cardBorder: string;
   iconBg: string;
@@ -278,13 +276,11 @@ export function ResultScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [record, setRecord] = useState<ScreeningRecordDetail | null>(null);
-  const [voiceGuide, setVoiceGuide] = useState(true);
 
   const fallbackName =
     sessionStorage.getItem("userName") || "អ្នកជំងឺ (Patient)";
   const fallbackPhone = sessionStorage.getItem("userPhone") || "---";
 
-  // 1. Fetch Assessment Record
   useEffect(() => {
     async function fetchRecord() {
       if (!recordId) {
@@ -309,10 +305,15 @@ export function ResultScreen() {
         setLoading(true);
         setError(null);
 
-        const res = await apiService(
-          `/kch-api/api/v1/assessment/records/${recordId}`,
-          "GET",
-        );
+        let res: any;
+        try {
+          res = await apiService(`/kch-api/api/v1/records/${recordId}`, "GET");
+        } catch {
+          res = await apiService(
+            `/kch-api/api/v1/assessment/records/${recordId}`,
+            "GET",
+          );
+        }
         const data: ScreeningRecordDetail = res?.data || res;
         if (!data || (!data.vitals && !data.result)) {
           throw new Error("មិនមានទិន្នន័យពិនិត្យសុខភាព (Record data is empty)");
@@ -333,7 +334,6 @@ export function ResultScreen() {
     fetchRecord();
   }, [recordId]);
 
-  // 2. Fallback Audio Pre-generation if /processing was bypassed
   useEffect(() => {
     if (!record) return;
 
@@ -377,12 +377,11 @@ export function ResultScreen() {
             );
           }
 
-          // Trigger playback via global voice guide
           if (audioUrl) {
             voiceGuide.playCustom(audioUrl);
           }
         } catch (err) {
-          console.warn("TTS on-demand generation skipped/failed:", err);
+          console.warn("TTS generation error:", err);
         }
       }
     }
@@ -396,6 +395,7 @@ export function ResultScreen() {
     sessionStorage.clear();
     navigate("/");
   };
+
   if (loading) {
     return (
       <div className="min-h-screen w-full bg-slate-100 flex flex-col items-center justify-center gap-4 text-teal-900 font-['Noto_Sans_Khmer',sans-serif]">
@@ -467,299 +467,292 @@ export function ResultScreen() {
   const glucoseTheme = getGlucoseTheme(r.glucose_category);
 
   return (
-    <div className="min-h-screen w-full overflow-y-auto bg-slate-100 font-['Noto_Sans_Khmer',sans-serif] flex flex-col justify-between select-none">
-      <div className="w-full flex flex-col pb-28">
-        {/* Header Banner */}
-        <header className="bg-[#073B35] text-white pt-6 pb-12 px-6 sm:px-10 shadow-md relative overflow-hidden shrink-0">
-          <div className="absolute top-0 right-0 opacity-10 pointer-events-none">
-            <HeartPulse size={220} />
+    <div className="w-full min-h-screen bg-slate-100 font-['Noto_Sans_Khmer',sans-serif] select-none flex flex-col pb-36">
+      {/* Header Banner - Responsive padding */}
+      <header className="bg-[#073B35] text-white pt-5 pb-6 sm:pb-10 px-4 sm:px-10 shadow-md relative overflow-hidden shrink-0">
+        <div className="absolute top-0 right-0 opacity-10 pointer-events-none">
+          <HeartPulse size={220} />
+        </div>
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3 sm:gap-4 relative z-10">
+          <div>
+            <h1 className="font-['Moul'] text-lg sm:text-2xl md:text-3xl mb-1 text-teal-50 drop-shadow-md">
+              លទ្ធផលការពិនិត្យសុខភាពរបស់អ្នក
+            </h1>
+            <p className="text-xs sm:text-sm text-teal-200 font-medium">
+              Your Health Evaluation Summary
+            </p>
           </div>
-          <div className="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 relative z-10">
+          <div className="flex items-center space-x-2.5 bg-teal-900/80 backdrop-blur px-3.5 py-1.5 rounded-2xl border border-teal-700/50 shadow-inner">
+            <UserCircle2 size={24} className="text-teal-300 shrink-0" />
             <div>
-              <h1 className="font-['Moul'] text-2xl sm:text-3xl mb-1 text-teal-50 drop-shadow-md">
-                លទ្ធផលការពិនិត្យសុខភាពរបស់អ្នក
-              </h1>
-              <p className="text-xs sm:text-sm text-teal-200 font-medium">
-                Your Health Evaluation Summary
+              <p className="text-[8px] text-teal-300 font-bold uppercase tracking-wider font-mono">
+                លេខសម្គាល់ / RECORD
+              </p>
+              <p className="font-mono text-xs font-bold tracking-wider text-white">
+                {record.id ? record.id.slice(0, 13) + "..." : fallbackPhone}
               </p>
             </div>
-            <div className="flex items-center space-x-3 bg-teal-900/80 backdrop-blur px-4 py-2 rounded-2xl border border-teal-700/50 shadow-inner">
-              <UserCircle2 size={30} className="text-teal-300 shrink-0" />
-              <div>
-                <p className="text-[9px] text-teal-300 font-bold uppercase tracking-wider font-mono">
-                  លេខសម្គាល់ / RECORD
-                </p>
-                <p className="font-mono text-xs font-bold tracking-wider text-white">
-                  {record.id ? record.id.slice(0, 13) + "..." : fallbackPhone}
-                </p>
-              </div>
-            </div>
           </div>
-        </header>
+        </div>
+      </header>
 
-        {/* 4 Solid Cards Grid */}
-        <main className="max-w-6xl w-full mx-auto px-4 sm:px-6 -mt-6 z-10">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-stretch">
-            {/* Card 1: User Info */}
-            <motion.div
-              className="bg-white rounded-3xl shadow-lg border-2 border-slate-200 p-5 flex flex-col justify-between"
-              initial={{ opacity: 0, y: 14 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.05 }}
-            >
-              <div>
-                <div className="flex items-center space-x-3 mb-4">
-                  <div className="bg-teal-50 p-2.5 rounded-2xl text-teal-600 shrink-0 border border-teal-100">
-                    <UserCircle2 size={24} />
-                  </div>
-                  <div>
-                    <h2 className="font-bold text-sm text-slate-800">
-                      ព័ត៌មានអ្នកជំងឺ
-                    </h2>
-                    <p className="text-[10px] text-slate-400">Patient Info</p>
-                  </div>
+      {/* Main Container - Controlled margins without clipping */}
+      <main className="max-w-6xl w-full mx-auto px-4 sm:px-6 pt-4 sm:-mt-6 z-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-stretch">
+          {/* Card 1: User Info */}
+          <motion.div
+            className="bg-white rounded-3xl shadow-lg border-2 border-slate-200 p-5 flex flex-col justify-between"
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+          >
+            <div>
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="bg-teal-50 p-2.5 rounded-2xl text-teal-600 shrink-0 border border-teal-100">
+                  <UserCircle2 size={24} />
                 </div>
-
-                <div className="space-y-2.5 text-xs">
-                  <div className="border-b border-slate-100 pb-2">
-                    <span className="text-slate-400 text-[10px]">
-                      ឈ្មោះ / Name
-                    </span>
-                    <p className="font-bold text-slate-800 text-sm mt-0.5">
-                      {patientName}
-                    </p>
-                  </div>
-                  <div className="border-b border-slate-100 pb-2">
-                    <span className="text-slate-400 text-[10px]">
-                      ភេទ / Gender
-                    </span>
-                    <p className="font-bold text-slate-800 text-xs mt-0.5">
-                      {genderLabel}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 text-[10px]">
-                      អាយុ / Age
-                    </span>
-                    <p className="font-bold text-slate-800 text-xs mt-0.5">
-                      {record.age || "--"}{" "}
-                      <span className="text-slate-400 text-[10px] font-normal">
-                        ឆ្នាំ (yrs)
-                      </span>
-                    </p>
-                  </div>
+                <div>
+                  <h2 className="font-bold text-sm text-slate-800">
+                    ព័ត៌មានអ្នកជំងឺ
+                  </h2>
+                  <p className="text-[10px] text-slate-400">Patient Info</p>
                 </div>
               </div>
 
-              {/* Translated CVD Label */}
-              <div className="mt-4 pt-3 border-t border-slate-100">
-                <div className="w-full bg-teal-50 border border-teal-200 text-teal-900 py-2 px-2 rounded-xl text-center font-bold text-xs">
-                  <span>ហានិភ័យបេះដូង និងសរសៃឈាម (CVD): </span>
-                  <span className="font-mono text-teal-700">
-                    {r.cvd_risk_band || "<5%"}
+              <div className="space-y-2.5 text-xs">
+                <div className="border-b border-slate-100 pb-2">
+                  <span className="text-slate-400 text-[10px]">
+                    ឈ្មោះ / Name
                   </span>
+                  <p className="font-bold text-slate-800 text-sm mt-0.5">
+                    {patientName}
+                  </p>
                 </div>
-              </div>
-            </motion.div>
-
-            {/* Card 2: Body Composition */}
-            <motion.div
-              className={`bg-white rounded-3xl shadow-lg border-2 p-5 flex flex-col justify-between transition-all ${bmiTheme.cardBorder}`}
-              initial={{ opacity: 0, y: 14 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-            >
-              <div>
-                <div className="flex items-center space-x-3 mb-4">
-                  <div
-                    className={`p-2.5 rounded-2xl shrink-0 ${bmiTheme.iconBg} ${bmiTheme.iconColor}`}
-                  >
-                    <Scale size={24} />
-                  </div>
-                  <div>
-                    <h2 className="font-bold text-sm text-slate-800">
-                      សមាសភាពរាងកាយ
-                    </h2>
-                    <p className="text-[10px] text-slate-400">
-                      Body Composition
-                    </p>
-                  </div>
-                </div>
-
-                <div className="space-y-2.5 text-xs">
-                  <div className="flex justify-between items-center border-b border-slate-100 pb-2">
-                    <span className="text-slate-500">កម្ពស់ (Height)</span>
-                    <span className="text-xs font-bold text-slate-800 font-mono">
-                      {height}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center border-b border-slate-100 pb-2">
-                    <span className="text-slate-500">ទម្ងន់ (Weight)</span>
-                    <span className="text-xs font-bold text-slate-800 font-mono">
-                      {weight}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center pt-1">
-                    <span className="text-slate-500 font-bold">BMI</span>
-                    <span className="text-xl font-black text-slate-900 font-mono">
-                      {bmiVal}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-4 pt-3 border-t border-slate-100">
-                <div
-                  className={`w-full border-2 py-2 px-2 rounded-xl text-center font-bold text-xs flex items-center justify-center gap-1.5 ${bmiTheme.badgeBg} ${bmiTheme.badgeBorder} ${bmiTheme.badgeText}`}
-                >
-                  <span>{bmiTheme.khLabel}</span>
-                  <span className="text-[10px] font-normal opacity-85 font-sans">
-                    ({bmiTheme.enLabel})
+                <div className="border-b border-slate-100 pb-2">
+                  <span className="text-slate-400 text-[10px]">
+                    ភេទ / Gender
                   </span>
+                  <p className="font-bold text-slate-800 text-xs mt-0.5">
+                    {genderLabel}
+                  </p>
                 </div>
-              </div>
-            </motion.div>
-
-            {/* Card 3: Blood Pressure */}
-            <motion.div
-              className={`bg-white rounded-3xl shadow-lg border-2 p-5 flex flex-col justify-between transition-all ${bpTheme.cardBorder}`}
-              initial={{ opacity: 0, y: 14 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15 }}
-            >
-              <div>
-                <div className="flex items-center space-x-3 mb-4">
-                  <div
-                    className={`p-2.5 rounded-2xl shrink-0 ${bpTheme.iconBg} ${bpTheme.iconColor}`}
-                  >
-                    <HeartPulse size={24} />
-                  </div>
-                  <div>
-                    <h2 className="font-bold text-sm text-slate-800">
-                      សម្ពាធឈាម
-                    </h2>
-                    <p className="text-[10px] text-slate-400">Blood Pressure</p>
-                  </div>
-                </div>
-
-                <div
-                  className={`flex flex-col justify-center items-center rounded-2xl border py-3 px-3 ${bpTheme.boxBg} ${bpTheme.boxBorder}`}
-                >
-                  <span className="text-slate-400 text-[10px] mb-0.5">
-                    BP Measurement
-                  </span>
-                  <div className="text-2xl font-black text-slate-900 tracking-tight font-mono">
-                    {sbp}
-                    <span className="text-lg text-slate-400 font-normal">
-                      /{dbp}
-                    </span>{" "}
-                    <span className="text-xs text-slate-500 font-normal">
-                      mmHg
+                <div>
+                  <span className="text-slate-400 text-[10px]">អាយុ / Age</span>
+                  <p className="font-bold text-slate-800 text-xs mt-0.5">
+                    {record.age || "--"}{" "}
+                    <span className="text-slate-400 text-[10px] font-normal">
+                      ឆ្នាំ (yrs)
                     </span>
-                  </div>
-                  <div className="w-full mt-2 pt-2 border-t border-slate-200/80 flex justify-between items-center px-1 text-xs">
-                    <span className="text-slate-400 text-[11px]">
-                      ចង្វាក់បេះដូង
-                    </span>
-                    <span className="font-bold text-rose-600 font-mono">
-                      {pulse} bpm
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-4">
-                <div
-                  className={`w-full border-2 py-2 px-2 rounded-xl text-center font-bold text-xs flex items-center justify-center gap-1.5 ${bpTheme.badgeBg} ${bpTheme.badgeBorder} ${bpTheme.badgeText}`}
-                >
-                  <span>{bpTheme.khLabel}</span>
-                  <span className="text-[10px] font-normal opacity-85 font-sans">
-                    ({bpTheme.enLabel})
-                  </span>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Card 4: Glucose */}
-            <motion.div
-              className={`bg-white rounded-3xl shadow-lg border-2 p-5 flex flex-col justify-between transition-all ${glucoseTheme.cardBorder}`}
-              initial={{ opacity: 0, y: 14 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-            >
-              <div>
-                <div className="flex items-center space-x-3 mb-4">
-                  <div
-                    className={`p-2.5 rounded-2xl shrink-0 ${glucoseTheme.iconBg} ${glucoseTheme.iconColor}`}
-                  >
-                    <Droplet size={24} />
-                  </div>
-                  <div>
-                    <h2 className="font-bold text-sm text-slate-800">
-                      ជាតិស្ករក្នុងឈាម
-                    </h2>
-                    <p className="text-[10px] text-slate-400">Blood Glucose</p>
-                  </div>
-                </div>
-
-                <div
-                  className={`flex flex-col justify-center items-center rounded-2xl border py-3 px-2 text-center ${glucoseTheme.boxBg} ${glucoseTheme.boxBorder}`}
-                >
-                  <div className="w-8 h-8 mb-1 bg-white shadow-sm rounded-full border border-teal-200 flex items-center justify-center text-teal-600">
-                    <Droplet size={16} className="fill-teal-50" />
-                  </div>
-                  <span className="text-xl font-black text-slate-900 font-mono">
-                    {glucoseVal ? `${glucoseVal} mg/dL` : "មិនបានវាស់"}
-                  </span>
-                  <p className="text-slate-400 text-[10px] mt-0.5">
-                    {glucoseType}
                   </p>
                 </div>
               </div>
+            </div>
 
-              <div className="mt-4">
+            <div className="mt-4 pt-3 border-t border-slate-100">
+              <div className="w-full bg-teal-50 border border-teal-200 text-teal-900 py-2 px-2 rounded-xl text-center font-bold text-xs">
+                <span>ហានិភ័យបេះដូង និងសរសៃឈាម (CVD): </span>
+                <span className="font-mono text-teal-700">
+                  {r.cvd_risk_band || "<5%"}
+                </span>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Card 2: Body Composition */}
+          <motion.div
+            className={`bg-white rounded-3xl shadow-lg border-2 p-5 flex flex-col justify-between transition-all ${bmiTheme.cardBorder}`}
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+          >
+            <div>
+              <div className="flex items-center space-x-3 mb-4">
                 <div
-                  className={`w-full border-2 py-2 px-2 rounded-xl text-center font-bold text-xs flex items-center justify-center gap-1.5 ${glucoseTheme.badgeBg} ${glucoseTheme.badgeBorder} ${glucoseTheme.badgeText}`}
+                  className={`p-2.5 rounded-2xl shrink-0 ${bmiTheme.iconBg} ${bmiTheme.iconColor}`}
                 >
-                  <span>{glucoseTheme.khLabel}</span>
-                  <span className="text-[10px] font-normal opacity-85 font-sans">
-                    ({glucoseTheme.enLabel})
+                  <Scale size={24} />
+                </div>
+                <div>
+                  <h2 className="font-bold text-sm text-slate-800">
+                    សមាសភាពរាងកាយ
+                  </h2>
+                  <p className="text-[10px] text-slate-400">Body Composition</p>
+                </div>
+              </div>
+
+              <div className="space-y-2.5 text-xs">
+                <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                  <span className="text-slate-500">កម្ពស់ (Height)</span>
+                  <span className="text-xs font-bold text-slate-800 font-mono">
+                    {height}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                  <span className="text-slate-500">ទម្ងន់ (Weight)</span>
+                  <span className="text-xs font-bold text-slate-800 font-mono">
+                    {weight}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center pt-1">
+                  <span className="text-slate-500 font-bold">BMI</span>
+                  <span className="text-xl font-black text-slate-900 font-mono">
+                    {bmiVal}
                   </span>
                 </div>
               </div>
-            </motion.div>
-          </div>
+            </div>
 
-          {/* Action Buttons */}
-          <motion.div
-            className="bg-white rounded-3xl shadow-md border border-slate-200 p-3.5 sm:p-4 mt-4"
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.25 }}
-          >
-            <div className="flex flex-col sm:flex-row gap-3">
-              <button
-                onClick={() =>
-                  navigate(`/receipt?record_id=${record.id}`, {
-                    state: { record }, // 👈 Hands the loaded data directly to ReceiptScreen
-                  })
-                }
-                className="flex-1 bg-[#00A884] hover:bg-[#008f70] text-white py-3.5 sm:py-4 rounded-2xl font-bold text-sm sm:text-base flex items-center justify-center space-x-3 shadow-md transition-all active:scale-[0.98]"
+            <div className="mt-4 pt-3 border-t border-slate-100">
+              <div
+                className={`w-full border-2 py-2 px-2 rounded-xl text-center font-bold text-xs flex items-center justify-center gap-1.5 ${bmiTheme.badgeBg} ${bmiTheme.badgeBorder} ${bmiTheme.badgeText}`}
               >
-                <Eye size={20} />
-                <span>មើលក្រដាសលទ្ធផល (Preview Receipt)</span>
-              </button>
-              <button
-                onClick={handleExit}
-                className="sm:w-1/3 bg-slate-800 hover:bg-slate-900 text-white py-3.5 sm:py-4 rounded-2xl font-bold text-sm sm:text-base flex items-center justify-center space-x-2 shadow-md transition-all active:scale-[0.98]"
-              >
-                <LogOut size={20} />
-                <span>បញ្ចប់ (Exit)</span>
-              </button>
+                <span>{bmiTheme.khLabel}</span>
+                <span className="text-[10px] font-normal opacity-85 font-sans">
+                  ({bmiTheme.enLabel})
+                </span>
+              </div>
             </div>
           </motion.div>
-        </main>
-      </div>
+
+          {/* Card 3: Blood Pressure */}
+          <motion.div
+            className={`bg-white rounded-3xl shadow-lg border-2 p-5 flex flex-col justify-between transition-all ${bpTheme.cardBorder}`}
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+          >
+            <div>
+              <div className="flex items-center space-x-3 mb-4">
+                <div
+                  className={`p-2.5 rounded-2xl shrink-0 ${bpTheme.iconBg} ${bpTheme.iconColor}`}
+                >
+                  <HeartPulse size={24} />
+                </div>
+                <div>
+                  <h2 className="font-bold text-sm text-slate-800">
+                    សម្ពាធឈាម
+                  </h2>
+                  <p className="text-[10px] text-slate-400">Blood Pressure</p>
+                </div>
+              </div>
+
+              <div
+                className={`flex flex-col justify-center items-center rounded-2xl border py-3 px-3 ${bpTheme.boxBg} ${bpTheme.boxBorder}`}
+              >
+                <span className="text-slate-400 text-[10px] mb-0.5">
+                  BP Measurement
+                </span>
+                <div className="text-2xl font-black text-slate-900 tracking-tight font-mono">
+                  {sbp}
+                  <span className="text-lg text-slate-400 font-normal">
+                    /{dbp}
+                  </span>{" "}
+                  <span className="text-xs text-slate-500 font-normal">
+                    mmHg
+                  </span>
+                </div>
+                <div className="w-full mt-2 pt-2 border-t border-slate-200/80 flex justify-between items-center px-1 text-xs">
+                  <span className="text-slate-400 text-[11px]">
+                    ចង្វាក់បេះដូង
+                  </span>
+                  <span className="font-bold text-rose-600 font-mono">
+                    {pulse} bpm
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <div
+                className={`w-full border-2 py-2 px-2 rounded-xl text-center font-bold text-xs flex items-center justify-center gap-1.5 ${bpTheme.badgeBg} ${bpTheme.badgeBorder} ${bpTheme.badgeText}`}
+              >
+                <span>{bpTheme.khLabel}</span>
+                <span className="text-[10px] font-normal opacity-85 font-sans">
+                  ({bpTheme.enLabel})
+                </span>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Card 4: Glucose */}
+          <motion.div
+            className={`bg-white rounded-3xl shadow-lg border-2 p-5 flex flex-col justify-between transition-all ${glucoseTheme.cardBorder}`}
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <div>
+              <div className="flex items-center space-x-3 mb-4">
+                <div
+                  className={`p-2.5 rounded-2xl shrink-0 ${glucoseTheme.iconBg} ${glucoseTheme.iconColor}`}
+                >
+                  <Droplet size={24} />
+                </div>
+                <div>
+                  <h2 className="font-bold text-sm text-slate-800">
+                    ជាតិស្ករក្នុងឈាម
+                  </h2>
+                  <p className="text-[10px] text-slate-400">Blood Glucose</p>
+                </div>
+              </div>
+
+              <div
+                className={`flex flex-col justify-center items-center rounded-2xl border py-3 px-2 text-center ${glucoseTheme.boxBg} ${glucoseTheme.boxBorder}`}
+              >
+                <div className="w-8 h-8 mb-1 bg-white shadow-sm rounded-full border border-teal-200 flex items-center justify-center text-teal-600">
+                  <Droplet size={16} className="fill-teal-50" />
+                </div>
+                <span className="text-xl font-black text-slate-900 font-mono">
+                  {glucoseVal ? `${glucoseVal} mg/dL` : "មិនបានវាស់"}
+                </span>
+                <p className="text-slate-400 text-[10px] mt-0.5">
+                  {glucoseType}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <div
+                className={`w-full border-2 py-2 px-2 rounded-xl text-center font-bold text-xs flex items-center justify-center gap-1.5 ${glucoseTheme.badgeBg} ${glucoseTheme.badgeBorder} ${glucoseTheme.badgeText}`}
+              >
+                <span>{glucoseTheme.khLabel}</span>
+                <span className="text-[10px] font-normal opacity-85 font-sans">
+                  ({glucoseTheme.enLabel})
+                </span>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Action Buttons */}
+        <motion.div
+          className="bg-white rounded-3xl shadow-md border border-slate-200 p-3.5 sm:p-4 mt-5"
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25 }}
+        >
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              onClick={() =>
+                navigate(`/receipt?record_id=${record.id}`, {
+                  state: { record },
+                })
+              }
+              className="flex-1 bg-[#00A884] hover:bg-[#008f70] text-white py-3.5 sm:py-4 rounded-2xl font-bold text-sm sm:text-base flex items-center justify-center space-x-3 shadow-md transition-all active:scale-[0.98]"
+            >
+              <Eye size={20} />
+              <span>មើលក្រដាសលទ្ធផល (Preview Receipt)</span>
+            </button>
+            <button
+              onClick={handleExit}
+              className="sm:w-1/3 bg-slate-800 hover:bg-slate-900 text-white py-3.5 sm:py-4 rounded-2xl font-bold text-sm sm:text-base flex items-center justify-center space-x-2 shadow-md transition-all active:scale-[0.98]"
+            >
+              <LogOut size={20} />
+              <span>បញ្ចប់ (Exit)</span>
+            </button>
+          </div>
+        </motion.div>
+      </main>
     </div>
   );
 }

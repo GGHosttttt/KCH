@@ -115,7 +115,7 @@ export function ReceiptScreen() {
     sessionStorage.getItem("patient_record_id") ||
     sessionStorage.getItem("record_id");
 
-  // 1. Instantly use passed record from ResultScreen or cached session
+  // Instantly use record passed from ResultScreen
   const initialRecord: ScreeningRecordDetail | null =
     (location.state as any)?.record ||
     (() => {
@@ -133,7 +133,7 @@ export function ReceiptScreen() {
   const [loading, setLoading] = useState<boolean>(!initialRecord);
   const [error, setError] = useState<string | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
-  const [autoExitSeconds, setAutoExitSeconds] = useState(60);
+  const [autoExitSeconds, setAutoExitSeconds] = useState(180);
 
   const frontend_origin =
     (window as any).kioskEnv?.getFrontOrigin?.() ||
@@ -144,9 +144,8 @@ export function ReceiptScreen() {
 
   const fallbackName = sessionStorage.getItem("userName") || "Walk-in Patient";
 
-  // 2. Fallback fetch ONLY if ResultScreen didn't pass state and cache is empty
   useEffect(() => {
-    if (record) return; // ✅ Bypasses network request completely!
+    if (record) return;
 
     async function loadRecordFallback() {
       if (!recordId) {
@@ -179,12 +178,11 @@ export function ReceiptScreen() {
     loadRecordFallback();
   }, [recordId, record]);
 
-  // 3. Generate QR Code
   useEffect(() => {
     const activeId = record?.id || recordId;
     if (!activeId) return;
 
-    const targetUrl = `${frontend_origin}/results?record_id=${activeId}`;
+    const targetUrl = `${frontend_origin}/#/results?record_id=${activeId}`;
 
     QRCode.toDataURL(targetUrl, {
       width: 130,
@@ -198,7 +196,6 @@ export function ReceiptScreen() {
       .catch((err) => console.error("QR Generation error:", err));
   }, [record?.id, recordId, frontend_origin]);
 
-  // 4. Auto Exit Timer
   useEffect(() => {
     const interval = setInterval(() => {
       setAutoExitSeconds((prev) => {
@@ -207,6 +204,7 @@ export function ReceiptScreen() {
           handleExit();
           return 0;
         }
+
         return prev - 1;
       });
     }, 1000);
@@ -227,7 +225,7 @@ export function ReceiptScreen() {
 
   if (loading) {
     return (
-      <div className="h-full w-full bg-slate-100 flex flex-col items-center justify-center gap-3 font-['Noto_Sans_Khmer',sans-serif]">
+      <div className="min-h-screen w-full bg-slate-100 flex flex-col items-center justify-center gap-3 font-['Noto_Sans_Khmer',sans-serif]">
         <Loader2 size={40} className="animate-spin text-teal-600" />
         <p className="text-slate-600 font-semibold text-sm">
           កំពុងរៀបចំវិក្កយបត្រលទ្ធផល...
@@ -238,7 +236,7 @@ export function ReceiptScreen() {
 
   if (error || !record) {
     return (
-      <div className="h-full w-full bg-slate-100 flex flex-col items-center justify-center p-4 font-['Noto_Sans_Khmer',sans-serif]">
+      <div className="min-h-screen w-full bg-slate-100 flex flex-col items-center justify-center p-4 font-['Noto_Sans_Khmer',sans-serif]">
         <div className="bg-white p-6 rounded-3xl shadow-lg max-w-sm w-full text-center">
           <AlertCircle size={40} className="text-red-500 mx-auto mb-3" />
           <p className="text-slate-700 font-bold mb-4">{error}</p>
@@ -272,45 +270,47 @@ export function ReceiptScreen() {
   const bmiStatus = getKhmerBmiLabel(r.bmi, r.bmi_category);
 
   return (
-    <div className="h-full w-full overflow-y-auto bg-slate-100 flex flex-col p-4 md:p-6 pb-24 font-['Noto_Sans_Khmer',sans-serif] select-none print:p-0 print:bg-white">
+    <div className="w-full min-h-screen bg-slate-100 flex flex-col p-3 sm:p-6 pb-36 font-['Noto_Sans_Khmer',sans-serif] select-none print:p-0 print:bg-white">
       {/* Top Header Bar */}
-      <header className="w-full max-w-5xl mx-auto flex items-center justify-between bg-white/95 backdrop-blur px-5 py-3 rounded-2xl shadow-sm border border-slate-200 shrink-0 print:hidden">
+      <header className="w-full max-w-5xl mx-auto flex items-center justify-between bg-white/95 backdrop-blur px-4 py-2.5 sm:px-5 sm:py-3 rounded-2xl shadow-sm border border-slate-200 shrink-0 print:hidden">
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-teal-900 font-bold text-sm hover:text-teal-700 transition-colors"
+          className="flex items-center gap-1.5 sm:gap-2 text-teal-900 font-bold text-xs sm:text-sm hover:text-teal-700 transition-colors"
         >
-          <ArrowLeft size={20} />
+          <ArrowLeft size={18} />
           <span>ត្រឡប់ក្រោយ</span>
         </button>
 
-        <div className="text-xs font-semibold text-slate-500 flex items-center gap-2">
-          <span>អេក្រង់នឹងបិទក្នុង (Auto-exit in):</span>
-          <span className="font-mono bg-teal-50 text-teal-800 px-2 py-0.5 rounded-lg border border-teal-200">
-            00:{autoExitSeconds.toString().padStart(2, "0")}
+        <div className="text-[11px] sm:text-xs font-semibold text-slate-500 flex items-center gap-1.5 sm:gap-2">
+          <span className="hidden sm:inline">
+            អេក្រង់នឹងបិទក្នុង (Auto-exit in):
+          </span>
+          <span className="font-mono bg-teal-50 text-teal-800 px-2 py-0.5 rounded-lg border border-teal-200 text-xs">
+            {`${String(Math.floor(autoExitSeconds / 60)).padStart(2, "0")}:${String(autoExitSeconds % 60).padStart(2, "0")}`}
           </span>
         </div>
 
         <button
           onClick={handleExit}
-          className="flex items-center gap-1.5 text-rose-700 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border border-rose-200"
+          className="flex items-center gap-1 text-rose-700 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl text-xs font-bold transition-all border border-rose-200"
         >
-          <X size={18} />
+          <X size={16} />
           <span>បិទ (Close)</span>
         </button>
       </header>
 
       {/* Screen Title */}
       <div className="text-center my-3 shrink-0 print:hidden">
-        <h1 className="font-['Moul'] text-2xl text-[#0A4D44] drop-shadow-sm">
+        <h1 className="font-['Moul'] text-xl sm:text-2xl text-[#0A4D44] drop-shadow-sm">
           វិក្កយបត្រលទ្ធផល
         </h1>
         <p className="text-xs text-slate-500">Receipt Preview</p>
       </div>
 
-      {/* Main Grid: Slip & Recommendations */}
-      <main className="w-full max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-5 my-2 items-start print:block print:w-full print:max-w-none">
-        {/* Left Column: Physical Receipt Slip */}
-        <div className="md:col-span-5 bg-white rounded-2xl shadow-lg border border-slate-300 p-5 font-mono text-xs leading-relaxed print:m-0 print:shadow-none print:border-none print:w-[320px] print:mx-auto">
+      {/* Main Grid: Fully Responsive Stacking */}
+      <main className="w-full max-w-5xl mx-auto flex flex-col lg:grid lg:grid-cols-12 gap-5 my-2 items-start print:block print:w-full print:max-w-none">
+        {/* Receipt Slip Column */}
+        <div className="w-full lg:col-span-5 bg-white rounded-2xl shadow-lg border border-slate-300 p-4 sm:p-5 font-mono text-xs leading-relaxed print:m-0 print:shadow-none print:border-none print:w-[320px] print:mx-auto">
           <div className="text-center border-b border-dashed border-slate-300 pb-3 mb-3">
             <h2 className="font-bold text-sm text-slate-900 font-sans uppercase tracking-wide">
               Khmer Community Health
@@ -318,7 +318,7 @@ export function ReceiptScreen() {
             <p className="text-xs text-slate-500 font-sans">
               ទូរសុខភាពសហគមន៍ខ្មែរ (Kiosk)
             </p>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-[11px] text-slate-400 mt-0.5">
               កាលបរិច្ឆេទ (Date): {dateStr}
             </p>
           </div>
@@ -460,41 +460,41 @@ export function ReceiptScreen() {
           </div>
         </div>
 
-        {/* Right Column: Recommendations & Actions */}
-        <div className="md:col-span-7 flex flex-col gap-4 print:hidden">
-          <div className="bg-white rounded-2xl shadow-md border border-slate-200 p-6 flex flex-col">
+        {/* Recommendations & Action Column */}
+        <div className="w-full lg:col-span-7 flex flex-col gap-4 print:hidden">
+          <div className="bg-white rounded-2xl shadow-md border border-slate-200 p-5 sm:p-6 flex flex-col">
             <div className="flex items-center gap-2 mb-4">
               <Sparkles size={22} className="text-[#00A884]" />
-              <h2 className="font-bold text-lg text-teal-900 font-['Moul']">
+              <h2 className="font-bold text-base sm:text-lg text-teal-900 font-['Moul']">
                 ការណែនាំពីប្រព័ន្ធសុខាភិបាល (Recommendations)
               </h2>
             </div>
 
-            <div className="space-y-3.5 text-sm text-slate-700">
+            <div className="space-y-3.5 text-xs sm:text-sm text-slate-700">
               {r.health_recommendation ? (
-                <div className="p-4 bg-teal-50/70 border border-teal-100 rounded-xl">
+                <div className="p-3.5 sm:p-4 bg-teal-50/70 border border-teal-100 rounded-xl">
                   <p className="font-bold text-teal-900 mb-1">
                     របបអាហារ និងសុខភាពទូទៅ (Health & Diet):
                   </p>
-                  <p className="leading-relaxed whitespace-pre-line text-slate-800 text-sm">
+                  <p className="leading-relaxed whitespace-pre-line text-slate-800">
                     {r.health_recommendation}
                   </p>
                 </div>
               ) : null}
 
               {r.workout_recommendation ? (
-                <div className="p-4 bg-emerald-50/70 border border-emerald-100 rounded-xl">
+                <div className="p-3.5 sm:p-4 bg-emerald-50/70 border border-emerald-100 rounded-xl">
                   <p className="font-bold text-emerald-900 mb-1">
                     សកម្មភាពរាងកាយ និងលំហាត់ប្រាណ (Exercise):
                   </p>
-                  <p className="leading-relaxed whitespace-pre-line text-slate-800 text-sm">
+                  <p className="leading-relaxed whitespace-pre-line text-slate-800">
                     {r.workout_recommendation}
                   </p>
                 </div>
               ) : null}
 
               {r.notes && r.notes.length > 0 ? (
-                <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+                <div className="p-3.5 sm:p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
                   <p className="font-bold text-slate-700 text-xs uppercase tracking-wider">
                     កំណត់សម្គាល់បន្ថែមពីប្រព័ន្ធសុខាភិបាល (Clinical Notes):
                   </p>

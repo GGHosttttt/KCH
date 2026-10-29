@@ -31,8 +31,7 @@ export const router = createHashRouter([
     Component: Layout,
     children: [
       // 1. Initial Landing & Setup
-      // { index: true, Component: WelcomeScreen },
-      { index: true, Component: InstructionScreen },
+      { index: true, Component: WelcomeScreen },
       { path: "auth", Component: AuthScreen },
       { path: "pairing", Component: MobilePairingPage },
 
