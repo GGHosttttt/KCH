@@ -42,12 +42,17 @@ export interface VitalsData {
   rpg_mgdl?: number;
 }
 
+// Measurement steps (like BMI/backend/public/test.html); each can be run, skipped or redone on its own.
+export type MeasureStep = "height" | "weight" | "vitals" | "bp";
+export type StepStatus = "done" | "skipped";
+
 export interface CheckupSessionState {
   sessionId: string | null;
   kioskId: string;
   user: PatientUser | null;
   questionnaire: QuestionnaireData;
   vitals: VitalsData;
+  stepStatus: Partial<Record<MeasureStep, StepStatus>>;
   paymentTranId: string | null;
   isPaid: boolean;
 
@@ -56,6 +61,8 @@ export interface CheckupSessionState {
   setUser: (user: PatientUser) => void;
   updateQuestionnaire: (data: Partial<QuestionnaireData>) => void;
   updateVitals: (data: Partial<VitalsData>) => void;
+  setStepStatus: (step: MeasureStep, status: StepStatus | null) => void;
+  resetMeasurements: () => void;
   setPaymentStatus: (tranId: string, status: boolean) => void;
   getSubmissionPayload: () => Record<string, any>;
   resetCheckup: () => void;
@@ -69,6 +76,7 @@ export const useCheckupStore = create<CheckupSessionState>()(
       user: null,
       questionnaire: {},
       vitals: {},
+      stepStatus: {},
       paymentTranId: null,
       isPaid: false,
 
@@ -80,6 +88,14 @@ export const useCheckupStore = create<CheckupSessionState>()(
         })),
       updateVitals: (data) =>
         set((state) => ({ vitals: { ...state.vitals, ...data } })),
+      setStepStatus: (step, status) =>
+        set((state) => {
+          const next = { ...state.stepStatus };
+          if (status) next[step] = status;
+          else delete next[step];
+          return { stepStatus: next };
+        }),
+      resetMeasurements: () => set({ vitals: {}, stepStatus: {} }),
       setPaymentStatus: (tranId, status) =>
         set({ paymentTranId: tranId, isPaid: status }),
 
@@ -145,6 +161,7 @@ export const useCheckupStore = create<CheckupSessionState>()(
           user: null,
           questionnaire: {},
           vitals: {},
+          stepStatus: {},
           paymentTranId: null,
           isPaid: false,
         });

@@ -65,7 +65,6 @@ export default function MobilePairingPage() {
 
   // 2. Claim Kiosk Session (Transmits token automatically via apiService)
   const handleConfirmPairing = async () => {
-    console.log('Proccessing')
     if (!sessionId) return;
 
     try {

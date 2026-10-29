@@ -11,6 +11,18 @@ export function Layout() {
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
   const [showHelpModal, setShowHelpModal] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const staffTaps = useRef<number[]>([]);
+
+  // Hidden staff access: 5 taps on the top-centre edge within 3 s opens the control panel.
+  const handleStaffTap = () => {
+    const now = Date.now();
+    staffTaps.current = [...staffTaps.current.filter((t) => now - t < 3000), now];
+    if (staffTaps.current.length >= 5) {
+      staffTaps.current = [];
+      voiceGuide.stop();
+      navigate("/control");
+    }
+  };
 
   const isHome = location.pathname === "/" || location.pathname === "";
   const INACTIVITY_LIMIT_MS = 10 * 60 * 1000; // 10 minutes
@@ -70,6 +82,14 @@ export function Layout() {
   };
 
   return (
+    <div className="min-h-[100dvh] w-full bg-slate-900 text-slate-800 font-['Battambang'] overflow-hidden flex items-center justify-center p-0 sm:p-4 md:p-8 relative">
+      <div className="w-full max-w-6xl h-[100dvh] max-h-[800px] bg-slate-100 relative shadow-2xl overflow-hidden sm:rounded-3xl border-0 sm:border-8 border-slate-800 flex flex-col">
+        {/* Main Route Content */}
+        <Outlet />
+
+        {/* Invisible staff hotspot (see handleStaffTap) */}
+        <div onPointerDown={handleStaffTap} className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-4 z-[60]" aria-hidden />
+
     <div className="min-h-[100dvh] w-full bg-slate-900 text-slate-800 font-['Battambang'] flex items-center justify-center p-0 sm:p-4 md:p-8 relative">
       {/* 
         Responsive Kiosk Wrapper:

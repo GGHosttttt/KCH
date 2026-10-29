@@ -84,7 +84,6 @@ export function AuthScreen() {
 
       // Assuming handleResponse returns { data, status } or direct payload
       const sessionData: SessionResponse = res.data || res;
-      console.log("Session Data: ", sessionData);
 
       if (!sessionData?.session_id) {
         throw new Error("Invalid session response from server");

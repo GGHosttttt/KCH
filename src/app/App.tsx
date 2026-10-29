@@ -18,6 +18,18 @@ export default function App() {
     apiUrl?: string;
   }>({});
 
+  // Staff shortcut to the control panel (debug tools, terminal)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "d") {
+        e.preventDefault();
+        window.location.hash = "#/control";
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   useEffect(() => {
     // 1. Check if native Electron preload bridge is present
     const nativeEnv = (window as any).kioskEnv;

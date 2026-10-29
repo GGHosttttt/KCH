@@ -13,6 +13,8 @@ import { HandwashScreen } from "./components/HandwashScreen";
 import { InstructionScreen } from "./components/InstructionScreen";
 import { InstructionScreen2 } from "./components/InstructionScreen2";
 import { InstructionScreen3 } from "./components/InstructionScreen3";
+import { MeasurementReviewScreen } from "./components/MeasurementReviewScreen";
+import ControlPanelPage from "./components/ControlPanelPage";
 import { ProcessingScreen } from "./components/ProcessingScreen";
 import PaymentCheckoutPage from "./components/PaymentCheckoutPage";
 import { ResultScreen } from "./components/ResultScreen";
@@ -26,6 +28,8 @@ import PatientProfilePage from "./components/patient-portal/PatientProfilePage";
 import RegisterProfilePage from "./components/patient-portal/RegisterProfilePage";
 
 export const router = createHashRouter([
+  // Staff / developer control panel: station controls, terminal, debug tools (full screen, no kiosk timers)
+  { path: "/control", Component: ControlPanelPage },
   {
     path: "/",
     Component: Layout,
@@ -51,6 +55,7 @@ export const router = createHashRouter([
           { path: "instructions/1", Component: InstructionScreen },
           { path: "instructions/2", Component: InstructionScreen2 },
           { path: "instructions/3", Component: InstructionScreen3 },
+          { path: "instructions/review", Component: MeasurementReviewScreen },
           { path: "payment", Component: PaymentCheckoutPage },
           { path: "processing", Component: ProcessingScreen },
           { path: "results", Component: ResultScreen },
