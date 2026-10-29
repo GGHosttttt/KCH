@@ -18,8 +18,7 @@ export const LogoutModal: React.FC<LogoutModalProps> = ({ isOpen, onClose }) => 
     setLoading(true);
     try {
       // Optional: Inform backend to revoke token/session
-      const res =  await apiService("/kch-api/api/v1/auth/logout", "DELETE");
-      console.log(res)
+      await apiService("/kch-api/api/v1/auth/logout", "DELETE");
     } catch {
       // Continue cleanup on frontend regardless of server response
     } finally {
