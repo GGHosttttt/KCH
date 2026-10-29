@@ -41,6 +41,7 @@ interface ScreeningRecordDetail {
     bp_category: string | null;
     glucose_category: string | null;
     bmi: number | null;
+    bmi_category?: string | null;
     cvd_risk_band: string | null;
     referral_urgency: string | null;
     referral_reasons: string[];
@@ -48,6 +49,217 @@ interface ScreeningRecordDetail {
     health_recommendation: string | null;
     workout_recommendation: string | null;
     notes: string[];
+  };
+}
+
+// ── Color & Theme Resolver ──
+type LevelTheme = {
+  cardBorder: string;
+  iconBg: string;
+  iconColor: string;
+  badgeBg: string;
+  badgeBorder: string;
+  badgeText: string;
+  boxBg: string;
+  boxBorder: string;
+  khLabel: string;
+  enLabel: string;
+};
+
+function getBmiTheme(bmi: number | null, cat?: string | null): LevelTheme {
+  const c = (cat || "").toLowerCase();
+  const val = bmi ?? 0;
+
+  if (c.includes("under") || (val > 0 && val < 18.5)) {
+    return {
+      cardBorder: "border-amber-400",
+      iconBg: "bg-amber-100",
+      iconColor: "text-amber-700",
+      badgeBg: "bg-amber-100",
+      badgeBorder: "border-amber-400",
+      badgeText: "text-amber-900",
+      boxBg: "bg-amber-50/70",
+      boxBorder: "border-amber-200",
+      khLabel: "ស្គម",
+      enLabel: "Underweight",
+    };
+  }
+  if (c.includes("over") || (val >= 23 && val < 25)) {
+    return {
+      cardBorder: "border-amber-400",
+      iconBg: "bg-amber-100",
+      iconColor: "text-amber-700",
+      badgeBg: "bg-amber-100",
+      badgeBorder: "border-amber-400",
+      badgeText: "text-amber-900",
+      boxBg: "bg-amber-50/70",
+      boxBorder: "border-amber-200",
+      khLabel: "លើសទម្ងន់ស្រាល",
+      enLabel: "Overweight",
+    };
+  }
+  if (c.includes("obese") || val >= 25) {
+    return {
+      cardBorder: "border-rose-400",
+      iconBg: "bg-rose-100",
+      iconColor: "text-rose-700",
+      badgeBg: "bg-rose-100",
+      badgeBorder: "border-rose-400",
+      badgeText: "text-rose-900",
+      boxBg: "bg-rose-50/70",
+      boxBorder: "border-rose-200",
+      khLabel: "លើសទម្ងន់ខ្លាំង",
+      enLabel: "Obese",
+    };
+  }
+  return {
+    cardBorder: "border-emerald-400",
+    iconBg: "bg-emerald-100",
+    iconColor: "text-emerald-700",
+    badgeBg: "bg-emerald-100",
+    badgeBorder: "border-emerald-400",
+    badgeText: "text-emerald-900",
+    boxBg: "bg-emerald-50/70",
+    boxBorder: "border-emerald-200",
+    khLabel: "ទម្ងន់សមស្រប",
+    enLabel: "Normal",
+  };
+}
+
+function getBpTheme(cat?: string | null): LevelTheme {
+  const c = (cat || "").toLowerCase();
+
+  if (c.includes("optimal")) {
+    return {
+      cardBorder: "border-emerald-400",
+      iconBg: "bg-emerald-100",
+      iconColor: "text-emerald-700",
+      badgeBg: "bg-emerald-100",
+      badgeBorder: "border-emerald-400",
+      badgeText: "text-emerald-900",
+      boxBg: "bg-emerald-50/70",
+      boxBorder: "border-emerald-200",
+      khLabel: "ល្អឥតខ្ចោះ",
+      enLabel: "Optimal",
+    };
+  }
+  if (c.includes("normal")) {
+    return {
+      cardBorder: "border-teal-400",
+      iconBg: "bg-teal-100",
+      iconColor: "text-teal-700",
+      badgeBg: "bg-teal-100",
+      badgeBorder: "border-teal-400",
+      badgeText: "text-teal-900",
+      boxBg: "bg-teal-50/70",
+      boxBorder: "border-teal-200",
+      khLabel: "ធម្មតា",
+      enLabel: "Normal",
+    };
+  }
+  if (c.includes("pre") || c.includes("elevated") || c.includes("grade 1")) {
+    return {
+      cardBorder: "border-amber-400",
+      iconBg: "bg-amber-100",
+      iconColor: "text-amber-700",
+      badgeBg: "bg-amber-100",
+      badgeBorder: "border-amber-400",
+      badgeText: "text-amber-900",
+      boxBg: "bg-amber-50/70",
+      boxBorder: "border-amber-200",
+      khLabel: "ប្រឈមឡើងសម្ពាធ",
+      enLabel: "Pre-hypertensive",
+    };
+  }
+  if (
+    c.includes("grade 2") ||
+    c.includes("grade 3") ||
+    c.includes("hypertens") ||
+    c.includes("crisis")
+  ) {
+    return {
+      cardBorder: "border-rose-500",
+      iconBg: "bg-rose-100",
+      iconColor: "text-rose-700",
+      badgeBg: "bg-rose-100",
+      badgeBorder: "border-rose-400",
+      badgeText: "text-rose-900",
+      boxBg: "bg-rose-50/70",
+      boxBorder: "border-rose-200",
+      khLabel: "លើសសម្ពាធឈាម",
+      enLabel: "High BP",
+    };
+  }
+  return {
+    cardBorder: "border-slate-300",
+    iconBg: "bg-slate-100",
+    iconColor: "text-slate-600",
+    badgeBg: "bg-slate-100",
+    badgeBorder: "border-slate-300",
+    badgeText: "text-slate-800",
+    boxBg: "bg-slate-50",
+    boxBorder: "border-slate-200",
+    khLabel: "បានវាស់រួច",
+    enLabel: "Recorded",
+  };
+}
+
+function getGlucoseTheme(cat?: string | null): LevelTheme {
+  const c = (cat || "").toLowerCase();
+
+  if (c.includes("normal")) {
+    return {
+      cardBorder: "border-emerald-400",
+      iconBg: "bg-emerald-100",
+      iconColor: "text-emerald-700",
+      badgeBg: "bg-emerald-100",
+      badgeBorder: "border-emerald-400",
+      badgeText: "text-emerald-900",
+      boxBg: "bg-emerald-50/70",
+      boxBorder: "border-emerald-200",
+      khLabel: "ជាតិស្ករធម្មតា",
+      enLabel: "Normal Range",
+    };
+  }
+  if (c.includes("impaired") || c.includes("pre")) {
+    return {
+      cardBorder: "border-amber-400",
+      iconBg: "bg-amber-100",
+      iconColor: "text-amber-700",
+      badgeBg: "bg-amber-100",
+      badgeBorder: "border-amber-400",
+      badgeText: "text-amber-900",
+      boxBg: "bg-amber-50/70",
+      boxBorder: "border-amber-200",
+      khLabel: "ប្រឈមទឹកនោមផ្អែម",
+      enLabel: "Pre-diabetic",
+    };
+  }
+  if (c.includes("diabet") || c.includes("elevated") || c.includes("suspect")) {
+    return {
+      cardBorder: "border-rose-500",
+      iconBg: "bg-rose-100",
+      iconColor: "text-rose-700",
+      badgeBg: "bg-rose-100",
+      badgeBorder: "border-rose-400",
+      badgeText: "text-rose-900",
+      boxBg: "bg-rose-50/70",
+      boxBorder: "border-rose-200",
+      khLabel: "ជាតិស្ករខ្ពស់",
+      enLabel: "Diabetic / High",
+    };
+  }
+  return {
+    cardBorder: "border-slate-300",
+    iconBg: "bg-slate-100",
+    iconColor: "text-slate-600",
+    badgeBg: "bg-slate-100",
+    badgeBorder: "border-slate-300",
+    badgeText: "text-slate-800",
+    boxBg: "bg-slate-50",
+    boxBorder: "border-slate-200",
+    khLabel: "បានវាស់រួច",
+    enLabel: "Recorded",
   };
 }
 
@@ -72,6 +284,7 @@ export function ResultScreen() {
     sessionStorage.getItem("userName") || "អ្នកជំងឺ (Patient)";
   const fallbackPhone = sessionStorage.getItem("userPhone") || "---";
 
+  // 1. Fetch Assessment Record
   useEffect(() => {
     async function fetchRecord() {
       if (!recordId) {
@@ -97,10 +310,9 @@ export function ResultScreen() {
         setError(null);
 
         const res = await apiService(
-          `/kch-api/api/v1/records/${recordId}`,
+          `/kch-api/api/v1/assessment/records/${recordId}`,
           "GET",
         );
-
         const data: ScreeningRecordDetail = res?.data || res;
         if (!data || (!data.vitals && !data.result)) {
           throw new Error("មិនមានទិន្នន័យពិនិត្យសុខភាព (Record data is empty)");
@@ -121,27 +333,18 @@ export function ResultScreen() {
     fetchRecord();
   }, [recordId]);
 
-  const handleExit = () => {
-    resetCheckup();
-    sessionStorage.clear();
-    navigate("/");
-  };
-
-  // Inside ResultScreen.tsx
-  const [audioPlaying, setAudioPlaying] = useState(false);
-  const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
-
+  // 2. Fallback Audio Pre-generation if /processing was bypassed
   useEffect(() => {
-    if (!record || !voiceGuide) return;
+    if (!record) return;
 
-    async function playOrGenerateAudio() {
+    async function ensureAudioReady() {
       let audioUrl = sessionStorage.getItem("tts_results_audio");
 
-      // 1. If not in session storage (e.g. mobile QR scan redirected straight here)
       if (!audioUrl) {
         try {
           const v = record.vitals || {};
           const r = record.result || {};
+
           const ttsRes = await apiService(
             "/kch-ai/api/v1/tts/checkup-narration",
             "POST",
@@ -173,30 +376,26 @@ export function ResultScreen() {
               `data:audio/mp3;base64,${data.receipt_audio_b64}`,
             );
           }
-        } catch (err) {
-          console.warn("On-demand audio generation skipped:", err);
-        }
-      }
 
-      // 2. Play Audio
-      if (audioUrl) {
-        if (audioPlayerRef.current) audioPlayerRef.current.pause();
-        const player = new Audio(audioUrl);
-        audioPlayerRef.current = player;
-        setAudioPlaying(true);
-        player.play().catch(console.warn);
-        player.onended = () => setAudioPlaying(false);
+          // Trigger playback via global voice guide
+          if (audioUrl) {
+            voiceGuide.playCustom(audioUrl);
+          }
+        } catch (err) {
+          console.warn("TTS on-demand generation skipped/failed:", err);
+        }
       }
     }
 
-    playOrGenerateAudio();
+    ensureAudioReady();
+  }, [record]);
 
-    return () => {
-      audioPlayerRef.current?.pause();
-    };
-  }, [record, voiceGuide]);
-
-  // Loading State
+  const handleExit = () => {
+    voiceGuide.stop();
+    resetCheckup();
+    sessionStorage.clear();
+    navigate("/");
+  };
   if (loading) {
     return (
       <div className="min-h-screen w-full bg-slate-100 flex flex-col items-center justify-center gap-4 text-teal-900 font-['Noto_Sans_Khmer',sans-serif]">
@@ -207,7 +406,6 @@ export function ResultScreen() {
     );
   }
 
-  // Error State
   if (error || !record) {
     return (
       <div className="min-h-screen w-full bg-slate-100 flex flex-col items-center justify-center p-6 text-center font-['Noto_Sans_Khmer',sans-serif]">
@@ -238,7 +436,6 @@ export function ResultScreen() {
     );
   }
 
-  // Parsed direct fields without manual math recalculation
   const v = record.vitals || {};
   const r = record.result || {};
 
@@ -263,11 +460,11 @@ export function ResultScreen() {
     ? "Fasting (FPG)"
     : v.rpg_mgdl
       ? "Random (RPG)"
-      : "Finger-stick / Sensor";
+      : "Non-invasive PPG";
 
-  // Category labels passed directly from backend result
-  const bpCategory = r.bp_category || "បានវាស់ (Recorded)";
-  const glucoseCategory = r.glucose_category || "បានវាស់ (Recorded)";
+  const bmiTheme = getBmiTheme(r.bmi, r.bmi_category);
+  const bpTheme = getBpTheme(r.bp_category);
+  const glucoseTheme = getGlucoseTheme(r.glucose_category);
 
   return (
     <div className="min-h-screen w-full overflow-y-auto bg-slate-100 font-['Noto_Sans_Khmer',sans-serif] flex flex-col justify-between select-none">
@@ -286,7 +483,7 @@ export function ResultScreen() {
                 Your Health Evaluation Summary
               </p>
             </div>
-            <div className="flex items-center space-x-3 bg-teal-900/60 backdrop-blur px-4 py-2 rounded-2xl border border-teal-700/50">
+            <div className="flex items-center space-x-3 bg-teal-900/80 backdrop-blur px-4 py-2 rounded-2xl border border-teal-700/50 shadow-inner">
               <UserCircle2 size={30} className="text-teal-300 shrink-0" />
               <div>
                 <p className="text-[9px] text-teal-300 font-bold uppercase tracking-wider font-mono">
@@ -300,19 +497,19 @@ export function ResultScreen() {
           </div>
         </header>
 
-        {/* 4 Cards Grid - Responsive & Full Height */}
+        {/* 4 Solid Cards Grid */}
         <main className="max-w-6xl w-full mx-auto px-4 sm:px-6 -mt-6 z-10">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-stretch">
             {/* Card 1: User Info */}
             <motion.div
-              className="bg-white rounded-3xl shadow-md border border-slate-200 p-5 flex flex-col justify-between"
+              className="bg-white rounded-3xl shadow-lg border-2 border-slate-200 p-5 flex flex-col justify-between"
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.05 }}
             >
               <div>
                 <div className="flex items-center space-x-3 mb-4">
-                  <div className="bg-teal-50 p-2.5 rounded-2xl text-teal-600 shrink-0">
+                  <div className="bg-teal-50 p-2.5 rounded-2xl text-teal-600 shrink-0 border border-teal-100">
                     <UserCircle2 size={24} />
                   </div>
                   <div>
@@ -354,23 +551,29 @@ export function ResultScreen() {
                 </div>
               </div>
 
+              {/* Translated CVD Label */}
               <div className="mt-4 pt-3 border-t border-slate-100">
-                <div className="w-full bg-teal-50 border border-teal-200 text-teal-800 py-1.5 px-2 rounded-xl text-center font-bold text-xs font-mono">
-                  CVD Risk: {r.cvd_risk_band || "<5%"}
+                <div className="w-full bg-teal-50 border border-teal-200 text-teal-900 py-2 px-2 rounded-xl text-center font-bold text-xs">
+                  <span>ហានិភ័យបេះដូង និងសរសៃឈាម (CVD): </span>
+                  <span className="font-mono text-teal-700">
+                    {r.cvd_risk_band || "<5%"}
+                  </span>
                 </div>
               </div>
             </motion.div>
 
             {/* Card 2: Body Composition */}
             <motion.div
-              className="bg-white rounded-3xl shadow-md border border-slate-200 p-5 flex flex-col justify-between"
+              className={`bg-white rounded-3xl shadow-lg border-2 p-5 flex flex-col justify-between transition-all ${bmiTheme.cardBorder}`}
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
             >
               <div>
                 <div className="flex items-center space-x-3 mb-4">
-                  <div className="bg-blue-50 p-2.5 rounded-2xl text-blue-600 shrink-0">
+                  <div
+                    className={`p-2.5 rounded-2xl shrink-0 ${bmiTheme.iconBg} ${bmiTheme.iconColor}`}
+                  >
                     <Scale size={24} />
                   </div>
                   <div>
@@ -398,7 +601,7 @@ export function ResultScreen() {
                   </div>
                   <div className="flex justify-between items-center pt-1">
                     <span className="text-slate-500 font-bold">BMI</span>
-                    <span className="text-lg font-bold text-slate-800 font-mono">
+                    <span className="text-xl font-black text-slate-900 font-mono">
                       {bmiVal}
                     </span>
                   </div>
@@ -406,9 +609,12 @@ export function ResultScreen() {
               </div>
 
               <div className="mt-4 pt-3 border-t border-slate-100">
-                <div className="w-full border border-teal-200 bg-teal-50 text-teal-800 py-1.5 rounded-xl text-center font-bold text-xs">
-                  <span>
-                    {r.bmi ? `BMI: ${Number(r.bmi).toFixed(1)}` : "បានវាស់រួច"}
+                <div
+                  className={`w-full border-2 py-2 px-2 rounded-xl text-center font-bold text-xs flex items-center justify-center gap-1.5 ${bmiTheme.badgeBg} ${bmiTheme.badgeBorder} ${bmiTheme.badgeText}`}
+                >
+                  <span>{bmiTheme.khLabel}</span>
+                  <span className="text-[10px] font-normal opacity-85 font-sans">
+                    ({bmiTheme.enLabel})
                   </span>
                 </div>
               </div>
@@ -416,14 +622,16 @@ export function ResultScreen() {
 
             {/* Card 3: Blood Pressure */}
             <motion.div
-              className="bg-white rounded-3xl shadow-md border border-slate-200 p-5 flex flex-col justify-between"
+              className={`bg-white rounded-3xl shadow-lg border-2 p-5 flex flex-col justify-between transition-all ${bpTheme.cardBorder}`}
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 }}
             >
               <div>
                 <div className="flex items-center space-x-3 mb-4">
-                  <div className="bg-rose-50 p-2.5 rounded-2xl text-rose-600 shrink-0">
+                  <div
+                    className={`p-2.5 rounded-2xl shrink-0 ${bpTheme.iconBg} ${bpTheme.iconColor}`}
+                  >
                     <HeartPulse size={24} />
                   </div>
                   <div>
@@ -434,20 +642,22 @@ export function ResultScreen() {
                   </div>
                 </div>
 
-                <div className="flex flex-col justify-center items-center bg-slate-50 rounded-2xl border border-slate-100 py-3 px-3">
+                <div
+                  className={`flex flex-col justify-center items-center rounded-2xl border py-3 px-3 ${bpTheme.boxBg} ${bpTheme.boxBorder}`}
+                >
                   <span className="text-slate-400 text-[10px] mb-0.5">
                     BP Measurement
                   </span>
-                  <div className="text-2xl font-bold text-slate-800 tracking-tight font-mono">
+                  <div className="text-2xl font-black text-slate-900 tracking-tight font-mono">
                     {sbp}
                     <span className="text-lg text-slate-400 font-normal">
                       /{dbp}
                     </span>{" "}
-                    <span className="text-xs text-slate-400 font-normal">
+                    <span className="text-xs text-slate-500 font-normal">
                       mmHg
                     </span>
                   </div>
-                  <div className="w-full mt-2 pt-2 border-t border-slate-200/60 flex justify-between items-center px-1 text-xs">
+                  <div className="w-full mt-2 pt-2 border-t border-slate-200/80 flex justify-between items-center px-1 text-xs">
                     <span className="text-slate-400 text-[11px]">
                       ចង្វាក់បេះដូង
                     </span>
@@ -459,22 +669,29 @@ export function ResultScreen() {
               </div>
 
               <div className="mt-4">
-                <div className="w-full border border-rose-200 bg-rose-50 text-rose-700 py-1.5 rounded-xl text-center font-bold text-xs">
-                  <span>{bpCategory}</span>
+                <div
+                  className={`w-full border-2 py-2 px-2 rounded-xl text-center font-bold text-xs flex items-center justify-center gap-1.5 ${bpTheme.badgeBg} ${bpTheme.badgeBorder} ${bpTheme.badgeText}`}
+                >
+                  <span>{bpTheme.khLabel}</span>
+                  <span className="text-[10px] font-normal opacity-85 font-sans">
+                    ({bpTheme.enLabel})
+                  </span>
                 </div>
               </div>
             </motion.div>
 
             {/* Card 4: Glucose */}
             <motion.div
-              className="bg-white rounded-3xl shadow-md border border-slate-200 p-5 flex flex-col justify-between"
+              className={`bg-white rounded-3xl shadow-lg border-2 p-5 flex flex-col justify-between transition-all ${glucoseTheme.cardBorder}`}
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
             >
               <div>
                 <div className="flex items-center space-x-3 mb-4">
-                  <div className="bg-teal-50 p-2.5 rounded-2xl text-[#00A884] shrink-0">
+                  <div
+                    className={`p-2.5 rounded-2xl shrink-0 ${glucoseTheme.iconBg} ${glucoseTheme.iconColor}`}
+                  >
                     <Droplet size={24} />
                   </div>
                   <div>
@@ -485,11 +702,13 @@ export function ResultScreen() {
                   </div>
                 </div>
 
-                <div className="flex flex-col justify-center items-center bg-slate-50 rounded-2xl border border-slate-100 py-3 px-2 text-center">
+                <div
+                  className={`flex flex-col justify-center items-center rounded-2xl border py-3 px-2 text-center ${glucoseTheme.boxBg} ${glucoseTheme.boxBorder}`}
+                >
                   <div className="w-8 h-8 mb-1 bg-white shadow-sm rounded-full border border-teal-200 flex items-center justify-center text-teal-600">
                     <Droplet size={16} className="fill-teal-50" />
                   </div>
-                  <span className="text-xl font-bold text-slate-800 font-mono">
+                  <span className="text-xl font-black text-slate-900 font-mono">
                     {glucoseVal ? `${glucoseVal} mg/dL` : "មិនបានវាស់"}
                   </span>
                   <p className="text-slate-400 text-[10px] mt-0.5">
@@ -499,8 +718,13 @@ export function ResultScreen() {
               </div>
 
               <div className="mt-4">
-                <div className="w-full border border-teal-200 bg-teal-50 text-teal-700 py-1.5 rounded-xl text-center font-bold text-xs">
-                  <span>{glucoseCategory}</span>
+                <div
+                  className={`w-full border-2 py-2 px-2 rounded-xl text-center font-bold text-xs flex items-center justify-center gap-1.5 ${glucoseTheme.badgeBg} ${glucoseTheme.badgeBorder} ${glucoseTheme.badgeText}`}
+                >
+                  <span>{glucoseTheme.khLabel}</span>
+                  <span className="text-[10px] font-normal opacity-85 font-sans">
+                    ({glucoseTheme.enLabel})
+                  </span>
                 </div>
               </div>
             </motion.div>
@@ -515,7 +739,11 @@ export function ResultScreen() {
           >
             <div className="flex flex-col sm:flex-row gap-3">
               <button
-                onClick={() => navigate(`/receipt?record_id=${record.id}`)}
+                onClick={() =>
+                  navigate(`/receipt?record_id=${record.id}`, {
+                    state: { record }, // 👈 Hands the loaded data directly to ReceiptScreen
+                  })
+                }
                 className="flex-1 bg-[#00A884] hover:bg-[#008f70] text-white py-3.5 sm:py-4 rounded-2xl font-bold text-sm sm:text-base flex items-center justify-center space-x-3 shadow-md transition-all active:scale-[0.98]"
               >
                 <Eye size={20} />
@@ -532,22 +760,6 @@ export function ResultScreen() {
           </motion.div>
         </main>
       </div>
-
-      {/* Floating Bottom Bar (Voice Assistant) */}
-      <footer className="fixed bottom-3 left-4 right-4 max-w-6xl mx-auto flex items-center justify-between pointer-events-none z-30">
-        <div className="pointer-events-auto flex items-center gap-2 bg-slate-800/90 backdrop-blur text-white px-4 py-1.5 rounded-full text-xs font-semibold shadow-lg border border-slate-700">
-          <Activity size={14} className="text-[#00A884]" />
-          <span>ជំនួយសំឡេងកំពុងបើក (Voice Guide On)</span>
-        </div>
-
-        <button
-          onClick={() => setVoiceGuide(!voiceGuide)}
-          className="pointer-events-auto w-10 h-10 rounded-full bg-white text-slate-700 flex items-center justify-center shadow-lg border border-slate-200 hover:bg-slate-50 transition-all active:scale-95"
-          title="Toggle Voice"
-        >
-          {voiceGuide ? <Volume2 size={18} /> : <VolumeX size={18} />}
-        </button>
-      </footer>
     </div>
   );
 }

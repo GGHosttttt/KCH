@@ -47,8 +47,8 @@ export function DiabetesQuestionsScreen() {
           <span className="bg-teal-600 text-white rounded-full w-7 h-7 flex items-center justify-center font-bold text-xs">៣</span>
         </div>
         <button
-          // onClick={() => navigate("/handwash")}
-          onClick={() => navigate("/payment")}
+          onClick={() => navigate("/handwash")}
+          // onClick={() => navigate("/payment")}
           disabled={!isComplete}
           className={`flex items-center space-x-2 px-6 py-2 rounded-xl shadow-sm font-bold active:scale-95 transition-all text-sm ${
             isComplete ? "text-white bg-teal-600 hover:bg-teal-700" : "text-slate-400 bg-slate-200 cursor-not-allowed"
