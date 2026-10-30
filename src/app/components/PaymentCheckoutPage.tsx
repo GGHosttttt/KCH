@@ -439,7 +439,8 @@ export default function PaymentCheckoutPage() {
           <button
             type="button"
             disabled={loading || !payData}
-            onClick={() => handleOpenAbaCheckout("popup")}
+            // onClick={() => handleOpenAbaCheckout("popup")}
+            onClick={() => handleOpenAbaCheckout("new_tab")}
             className="w-full py-4 bg-[#00A884] hover:bg-[#008f70] active:scale-[0.98] text-white font-bold rounded-2xl shadow-lg transition-all text-sm flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {loading ? (
@@ -456,7 +457,7 @@ export default function PaymentCheckoutPage() {
           </button>
 
           {/* New Tab Mode Button */}
-          <button
+          {/* <button
             type="button"
             disabled={loading || !payData}
             onClick={() => handleOpenAbaCheckout("new_tab")}
@@ -464,7 +465,7 @@ export default function PaymentCheckoutPage() {
           >
             <ExternalLink size={15} />
             <span>បើកផ្ទាំងទូទាត់ថ្មី (Open in New Tab)</span>
-          </button>
+          </button> */}
 
           {checkingStatus && (
             <div className="mt-4 flex items-center justify-center gap-2 text-xs text-teal-700 bg-teal-50 py-2.5 rounded-xl border border-teal-200">

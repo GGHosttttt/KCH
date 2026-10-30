@@ -56,6 +56,14 @@ export function Layout() {
 
   const isHome = location.pathname === "/" || location.pathname === "";
 
+  // NEW: Define routes that should bypass the inactivity timeout
+  const isTimeoutBypassed =
+    isHome ||
+    ["/patient/login", "/patient/register", "/patient/profile"].some(
+      (path) =>
+        location.pathname === path || location.pathname.startsWith(`${path}/`),
+    );
+
   const getAuthToken = () => {
     return localStorage.getItem("access_token");
   };
@@ -75,7 +83,8 @@ export function Layout() {
       }
 
       const token = getAuthToken();
-      if (token || isHome) {
+      // UPDATED: Check isTimeoutBypassed instead of just isHome
+      if (token || isTimeoutBypassed) {
         return;
       }
 
@@ -87,7 +96,7 @@ export function Layout() {
         navigate("/");
       }, INACTIVITY_LIMIT_MS);
     },
-    [isHome, INACTIVITY_LIMIT_MS, navigate],
+    [isTimeoutBypassed, INACTIVITY_LIMIT_MS, navigate],
   );
 
   // 2. Filtered event listeners: ignores stationary hover & passive DOM scrolls
@@ -150,7 +159,8 @@ export function Layout() {
 
     const interval = setInterval(() => {
       const token = getAuthToken();
-      if (isHome || token) {
+      // UPDATED: Check isTimeoutBypassed instead of just isHome
+      if (isTimeoutBypassed || token) {
         setIdleDurationSec(0);
         return;
       }
@@ -159,7 +169,7 @@ export function Layout() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [isHome]);
+  }, [isTimeoutBypassed]);
 
   // 3. Reset timer specifically when the route changes
   useEffect(() => {
@@ -233,10 +243,11 @@ export function Layout() {
             <div className="flex justify-between items-center">
               <span className="text-slate-400">Status:</span>
               <span
-                className={`font-semibold ${isHome || getAuthToken() ? "text-amber-400" : "text-emerald-400"}`}
+                className={`font-semibold ${isTimeoutBypassed || getAuthToken() ? "text-amber-400" : "text-emerald-400"}`}
               >
-                {isHome
-                  ? "Disabled (Home)"
+                {/* UPDATED HUD LABEL */}
+                {isTimeoutBypassed
+                  ? "Disabled (Exempt Page)"
                   : getAuthToken()
                     ? "Bypassed (Token)"
                     : "Monitoring"}
