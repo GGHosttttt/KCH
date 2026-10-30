@@ -64,6 +64,64 @@ type LevelTheme = {
   enLabel: string;
 };
 
+type CvdTheme = {
+  bgClass: string;
+  textClass: string;
+  borderClass: string;
+  khLabel: string;
+  enLabel: string;
+};
+
+function getCvdTheme(band?: string | null): CvdTheme {
+  const b = (band || "<5%").toLowerCase();
+
+  if (b.includes("5_to_10")) {
+    return {
+      khLabel: "ហានិភ័យស្រាល",
+      enLabel: "Mild Risk (5-10%)",
+      bgClass: "bg-teal-50",
+      textClass: "text-teal-700",
+      borderClass: "border-teal-200",
+    };
+  }
+  if (b.includes("10_to_20")) {
+    return {
+      khLabel: "ហានិភ័យមធ្យម",
+      enLabel: "Moderate Risk (10-20%)",
+      bgClass: "bg-amber-50",
+      textClass: "text-amber-700",
+      borderClass: "border-amber-200",
+    };
+  }
+  if (b.includes("20_to_30")) {
+    return {
+      khLabel: "ហានិភ័យខ្ពស់",
+      enLabel: "High Risk (20-30%)",
+      bgClass: "bg-orange-50",
+      textClass: "text-orange-700",
+      borderClass: "border-orange-200",
+    };
+  }
+  if (b.includes(">=30") || b.includes("very_high")) {
+    return {
+      khLabel: "ហានិភ័យខ្ពស់ខ្លាំង",
+      enLabel: "Very High Risk (≥30%)",
+      bgClass: "bg-rose-50",
+      textClass: "text-rose-700",
+      borderClass: "border-rose-200",
+    };
+  }
+
+  // Default fallback is <5%
+  return {
+    khLabel: "ហានិភ័យទាប",
+    enLabel: "Low Risk (<5%)",
+    bgClass: "bg-emerald-50",
+    textClass: "text-emerald-700",
+    borderClass: "border-emerald-200",
+  };
+}
+
 function getBmiTheme(bmi: number | null, cat?: string | null): LevelTheme {
   const c = (cat || "").toLowerCase();
   const val = bmi ?? 0;
@@ -306,14 +364,12 @@ export function ResultScreen() {
         setError(null);
 
         let res: any;
-        try {
-          res = await apiService(`/kch-api/api/v1/records/${recordId}`, "GET");
-        } catch {
-          res = await apiService(
-            `/kch-api/api/v1/assessment/records/${recordId}`,
-            "GET",
-          );
-        }
+
+        res = await apiService(
+          `/kch-api/api/v1/assessment/records/${recordId}`,
+          "GET",
+        );
+        
         const data: ScreeningRecordDetail = res?.data || res;
         if (!data || (!data.vitals && !data.result)) {
           throw new Error("មិនមានទិន្នន័យពិនិត្យសុខភាព (Record data is empty)");
@@ -462,6 +518,7 @@ export function ResultScreen() {
       ? "Random (RPG)"
       : "Non-invasive PPG";
 
+  const cvdTheme = getCvdTheme(r.cvd_risk_band);
   const bmiTheme = getBmiTheme(r.bmi, r.bmi_category);
   const bpTheme = getBpTheme(r.bp_category);
   const glucoseTheme = getGlucoseTheme(r.glucose_category);
@@ -549,10 +606,15 @@ export function ResultScreen() {
             </div>
 
             <div className="mt-4 pt-3 border-t border-slate-100">
-              <div className="w-full bg-teal-50 border border-teal-200 text-teal-900 py-2 px-2 rounded-xl text-center font-bold text-xs">
-                <span>ហានិភ័យបេះដូង និងសរសៃឈាម (CVD): </span>
-                <span className="font-mono text-teal-700">
-                  {r.cvd_risk_band || "<5%"}
+              <div
+                className={`w-full border py-2 px-2 rounded-xl text-center font-bold text-xs flex flex-col gap-0.5 ${cvdTheme.bgClass} ${cvdTheme.borderClass} ${cvdTheme.textClass}`}
+              >
+                <span className="text-[11px] opacity-80">
+                  ហានិភ័យបេះដូង និងសរសៃឈាម (CVD):{" "}
+                </span>
+                <span className="text-sm">{cvdTheme.khLabel}</span>
+                <span className="text-[10px] font-normal opacity-85">
+                  ({cvdTheme.enLabel})
                 </span>
               </div>
             </div>

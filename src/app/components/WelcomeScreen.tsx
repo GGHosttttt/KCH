@@ -1,7 +1,8 @@
 import { useNavigate } from "react-router";
 import { Play, Activity, Heart } from "lucide-react";
 import { motion } from "motion/react";
-import logo from "../../../src/assets/KCH-white-logo.png";
+// import logo from "../../../src/assets/KCH-white-logo.png";
+import logo from "../../../src/assets/kch-kiosk-logo-white-v2.png";
 
 export function WelcomeScreen() {
   const navigate = useNavigate();
@@ -16,7 +17,7 @@ export function WelcomeScreen() {
       </div>
 
       <div className="absolute top-8 left-8 flex items-center space-x-4">
-        <div className="w-16 h-16 rounded-full flex items-center justify-center shadow-lg overflow-hidden">
+        <div className="w-16 h-16 rounded-full flex items-center justify-center overflow-hidden">
           <img
             src={logo}
             alt="Logo"

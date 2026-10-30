@@ -1,88 +1,51 @@
-import { useEffect, useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router";
 import {
-  HeartPulse,
-  Scale,
-  Droplet,
   User,
   LogOut,
   Calendar,
+  Clock,
+  ShieldCheck,
+  Activity,
+  TrendingUp,
+  Scale,
+  HeartPulse,
+  Droplet,
   ChevronRight,
+  Sparkles,
   Printer,
   Volume2,
   VolumeX,
-  Activity,
-  AlertCircle,
   Brain,
-  Sparkles,
-  TrendingUp,
-  Clock,
-  ShieldCheck,
+  AlertCircle,
+  FileQuestion,
+  PlusCircle,
 } from "lucide-react";
 import { motion } from "motion/react";
 import apiService from "../../../../services/apiService";
-import logo from "../../../../src/assets/KCH-white-logo.png";
+// import logo from "../../../../src/assets/KCH-white-logo.png";
+import logo from "../../../../src/assets/kch-kiosk-logo-white-v2.png";
 
-interface VitalMetrics {
-  height_cm: number | null;
-  weight_kg: number | null;
-  systolic_mmhg: number | null;
-  diastolic_mmhg: number | null;
-  pulse_bpm: number | null;
-  heart_rate_bpm: number | null;
-  spo2_percent: number | null;
-  fpg_mgdl: number | null;
-  rpg_mgdl: number | null;
-}
-
-interface ClinicalResult {
-  bp_category: string | null;
-  glucose_category: string | null;
-  bmi: number | null;
-  bmi_category?: string | null;
-  cvd_risk_band: string | null;
-  referral_urgency: string | null;
-  referral_reasons: string[];
-  diagnosis_confirmed: boolean;
-  health_recommendation: string | null;
-  workout_recommendation: string | null;
-  notes: string[];
-}
-
-interface ScreeningItem {
-  id: string;
-  user_id: string;
-  kiosk_id: string;
-  session_id: string | null;
-  status: string;
-  patient_name: string;
-  age: number;
-  gender: string;
-  created_at: string;
-  updated_at: string;
-  vitals: VitalMetrics | null;
-  result: ClinicalResult | null;
-}
-
+// ── Translation & Status Label Helpers ──
 function getKhmerBpLabel(cat?: string | null) {
   const c = (cat || "").toLowerCase();
   if (c.includes("optimal"))
     return {
       kh: "ល្អឥតខ្ចោះ",
       en: "Optimal",
-      color: "text-emerald-700 bg-emerald-50 border-emerald-200",
+      color: "text-emerald-700 border-emerald-200 bg-emerald-50",
     };
   if (c.includes("normal"))
     return {
       kh: "ធម្មតា",
       en: "Normal",
-      color: "text-teal-700 bg-teal-50 border-teal-200",
+      color: "text-teal-700 border-teal-200 bg-teal-50",
     };
   if (c.includes("pre") || c.includes("elevated") || c.includes("grade 1")) {
     return {
       kh: "ប្រឈមឡើងសម្ពាធ",
       en: "Pre-hypertensive",
-      color: "text-amber-800 bg-amber-50 border-amber-300",
+      color: "text-amber-700 border-amber-200 bg-amber-50",
     };
   }
   if (
@@ -94,13 +57,13 @@ function getKhmerBpLabel(cat?: string | null) {
     return {
       kh: "លើសសម្ពាធឈាម",
       en: "High BP",
-      color: "text-rose-800 bg-rose-50 border-rose-300",
+      color: "text-rose-700 border-rose-200 bg-rose-50",
     };
   }
   return {
     kh: "បានវាស់រួច",
     en: "Recorded",
-    color: "text-slate-700 bg-slate-50 border-slate-200",
+    color: "text-slate-700 border-slate-200 bg-slate-50",
   };
 }
 
@@ -109,26 +72,26 @@ function getKhmerGlucoseLabel(cat?: string | null) {
   if (c.includes("normal"))
     return {
       kh: "ជាតិស្ករធម្មតា",
-      en: "Normal",
-      color: "text-emerald-700 bg-emerald-50 border-emerald-200",
+      en: "Normal Range",
+      color: "text-emerald-700 border-emerald-200 bg-emerald-50",
     };
   if (c.includes("impaired") || c.includes("pre"))
     return {
       kh: "ប្រឈមទឹកនោមផ្អែម",
       en: "Pre-diabetic",
-      color: "text-amber-800 bg-amber-50 border-amber-300",
+      color: "text-amber-700 border-amber-200 bg-amber-50",
     };
   if (c.includes("diabet") || c.includes("elevated") || c.includes("suspect")) {
     return {
       kh: "ជាតិស្ករខ្ពស់",
       en: "Diabetic / High",
-      color: "text-rose-800 bg-rose-50 border-rose-300",
+      color: "text-rose-700 border-rose-200 bg-rose-50",
     };
   }
   return {
     kh: "បានវាស់រួច",
     en: "Recorded",
-    color: "text-slate-700 bg-slate-50 border-slate-200",
+    color: "text-slate-700 border-slate-200 bg-slate-50",
   };
 }
 
@@ -139,24 +102,24 @@ function getKhmerBmiLabel(bmi: number | null, cat?: string | null) {
     return {
       kh: "ស្គម",
       en: "Underweight",
-      color: "text-amber-800 bg-amber-50 border-amber-300",
+      color: "text-amber-700 border-amber-200 bg-amber-50",
     };
   if (c.includes("over") || (val >= 23 && val < 25))
     return {
       kh: "លើសទម្ងន់ស្រាល",
       en: "Overweight",
-      color: "text-amber-800 bg-amber-50 border-amber-300",
+      color: "text-amber-700 border-amber-200 bg-amber-50",
     };
   if (c.includes("obese") || val >= 25)
     return {
       kh: "លើសទម្ងន់ខ្លាំង",
       en: "Obese",
-      color: "text-rose-800 bg-rose-50 border-rose-300",
+      color: "text-rose-700 border-rose-200 bg-rose-50",
     };
   return {
     kh: "ទម្ងន់សមស្រប",
     en: "Normal",
-    color: "text-emerald-700 bg-emerald-50 border-emerald-200",
+    color: "text-emerald-700 border-emerald-200 bg-emerald-50",
   };
 }
 
@@ -165,14 +128,21 @@ export default function PatientProfilePage() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [historyRecords, setHistoryRecords] = useState<ScreeningItem[]>([]);
-  const [selectedRecord, setSelectedRecord] = useState<ScreeningItem | null>(
-    null,
-  );
+  const [historyRecords, setHistoryRecords] = useState<any[]>([]);
+  const [selectedRecord, setSelectedRecord] = useState<any | null>(null);
   const [voiceGuide, setVoiceGuide] = useState(true);
   const [activeMetricTab, setActiveMetricTab] = useState<
     "bp" | "bmi" | "glucose"
   >("bp");
+
+  const patientName =
+    sessionStorage.getItem("userName") ||
+    localStorage.getItem("user_name") ||
+    "អ្នកជំងឺ (Patient)";
+  const patientPhone =
+    sessionStorage.getItem("userPhone") ||
+    localStorage.getItem("user_phone") ||
+    "--";
 
   useEffect(() => {
     async function fetchPortalData() {
@@ -180,15 +150,13 @@ export default function PatientProfilePage() {
         setLoading(true);
         setError(null);
 
-        let res: any;
-
-        res = await apiService(
+        const res: any = await apiService(
           "/kch-api/api/v1/assessment/me?page=1&page_size=10",
           "GET",
         );
 
         const body = res?.data || res;
-        let items: ScreeningItem[] = [];
+        let items: any[] = [];
         if (body && Array.isArray(body.items)) {
           items = body.items;
         } else if (Array.isArray(body)) {
@@ -197,14 +165,8 @@ export default function PatientProfilePage() {
           items = [body];
         }
 
-        if (items.length === 0) {
-          throw new Error(
-            "មិនទាន់មានកំណត់ត្រាពិនិត្យសុខភាពនៅឡើយទេ (No records found)",
-          );
-        }
-
         setHistoryRecords(items);
-        setSelectedRecord(items[0]);
+        setSelectedRecord(items.length > 0 ? items[0] : null);
       } catch (err: any) {
         console.error("Portal fetch error:", err);
         setError(err?.message || "បរាជ័យក្នុងការទាញយកកំណត់ត្រាសុខភាព");
@@ -219,10 +181,10 @@ export default function PatientProfilePage() {
   const handleLogout = () => {
     sessionStorage.clear();
     localStorage.removeItem("access_token");
-    navigate("/auth");
+    navigate("/patient/login");
   };
 
-  // Trend analysis calculation (chronological order for the chart)
+  // Trend analysis calculation (chronological order)
   const chronologicalHistory = useMemo(() => {
     return [...historyRecords].reverse();
   }, [historyRecords]);
@@ -274,15 +236,16 @@ export default function PatientProfilePage() {
     );
   }
 
-  if (error || !selectedRecord) {
+  // Network / Server Error Screen
+  if (error) {
     return (
       <div className="min-h-[100dvh] w-full bg-[#073B35] flex flex-col items-center justify-center p-6 text-center font-['Noto_Sans_Khmer',sans-serif]">
         <div className="bg-white p-8 rounded-3xl shadow-2xl max-w-md w-full border border-red-100">
           <div className="w-16 h-16 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-red-200">
             <AlertCircle size={36} />
           </div>
-          <h2 className="text-lg font-bold text-slate-800 mb-2">
-            មិនមានទិន្នន័យកំណត់ត្រា
+          <h2 className="text-lg font-bold text-slate-800 mb-2 font-['Moul']">
+            មានបញ្ហាក្នុងការទាញយក
           </h2>
           <p className="text-xs text-slate-500 mb-6 leading-relaxed">{error}</p>
           <div className="flex flex-col gap-2.5">
@@ -292,26 +255,145 @@ export default function PatientProfilePage() {
             >
               ព្យាយាមម្តងទៀត (Retry)
             </button>
-            <button
+            {/* <button
               onClick={() => navigate("/")}
               className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm transition-all"
             >
               ត្រឡប់ទៅទំព័រដើម (Go Home)
-            </button>
+            </button> */}
           </div>
         </div>
       </div>
     );
   }
 
-  const v = selectedRecord.vitals || ({} as VitalMetrics);
-  const r = selectedRecord.result || ({} as ClinicalResult);
+  // Common Header component used across both empty and populated states
+  const renderHeader = () => (
+    <header className="w-full flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 py-2 mb-4 shrink-0 border-b border-teal-700/50 pb-4">
+      <div className="flex items-center gap-3">
+        <div className="w-12 h-12 rounded-2xl bg-[#00A884] flex items-center justify-center shadow-lg border border-teal-300/30 shrink-0 overflow-hidden">
+          <img
+            src={logo}
+            alt="KCH"
+            className="w-full h-full object-contain p-1.5"
+          />
+        </div>
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="font-['Moul'] text-lg sm:text-xl text-white tracking-wide drop-shadow-sm">
+              ទូរសុខភាពសហគមន៍ខ្មែរ
+            </h1>
+            <span className="bg-[#00A884] text-white text-[10px] font-mono px-2 py-0.5 rounded-full font-bold">
+              PORTAL
+            </span>
+          </div>
+          <p className="text-[11px] text-teal-200 font-medium">
+            ប្រវត្តិ និងនិន្នាការសុខភាពផ្ទាល់ខ្លួន (Patient Health Dashboard)
+          </p>
+        </div>
+      </div>
 
-  const patientName =
-    selectedRecord.patient_name ||
-    sessionStorage.getItem("userName") ||
-    "អ្នកជំងឺ";
-  const patientPhone = sessionStorage.getItem("userPhone") || "011 111 111";
+      <div className="flex items-center gap-2.5 w-full sm:w-auto justify-between sm:justify-end">
+        <div className="flex items-center gap-2 bg-teal-900/80 backdrop-blur border border-teal-600/40 px-3.5 py-1.5 rounded-2xl text-xs text-white shadow-sm">
+          <User size={15} className="text-[#00A884]" />
+          <span className="font-bold">{patientName}</span>
+          <span className="text-teal-300/80 font-mono text-[11px]">
+            ({patientPhone})
+          </span>
+        </div>
+
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-1.5 bg-rose-600/80 hover:bg-rose-700 active:scale-95 transition-all text-white text-xs font-bold px-3 py-1.5 rounded-xl shadow-sm border border-rose-400/40"
+        >
+          <LogOut size={14} />
+          <span>ចាកចេញ</span>
+        </button>
+      </div>
+    </header>
+  );
+
+  // ── EMPTY STATE (User has 0 records) ──
+  if (historyRecords.length === 0 || !selectedRecord) {
+    return (
+      <div className="min-h-[100dvh] w-full bg-[#073B35] text-slate-800 font-['Noto_Sans_Khmer',sans-serif] select-none flex flex-col justify-between p-3 sm:p-6 pb-28">
+        <div className="w-full max-w-7xl mx-auto flex flex-col flex-1">
+          {renderHeader()}
+
+          <div className="flex-1 flex flex-col items-center justify-center my-8">
+            <div className="bg-white rounded-3xl p-8 sm:p-10 shadow-2xl border border-teal-600/20 max-w-lg w-full text-center space-y-5">
+              <div className="w-20 h-20 bg-teal-50 text-[#00A884] rounded-3xl flex items-center justify-center mx-auto border-2 border-teal-100 shadow-sm">
+                <FileQuestion size={44} />
+              </div>
+
+              <div>
+                <h2 className="font-['Moul'] text-lg sm:text-xl text-teal-950 mb-2 leading-relaxed">
+                  មិនទាន់មានកំណត់ត្រាពិនិត្យនៅឡើយទេ
+                </h2>
+                <p className="text-xs sm:text-sm text-slate-500 leading-relaxed font-sans">
+                  គណនីរបស់អ្នកត្រូវបានភ្ជាប់ដោយជោគជ័យ
+                  ប៉ុន្តែអ្នកមិនទាន់បានធ្វើការពិនិត្យសុខភាពនៅទូស្វ័យប្រវត្តិ KCH
+                  ឡើយ។
+                  <br />
+                  <span className="text-[11px] text-slate-400 mt-1 block">
+                    (No health checkup records found for this account yet.)
+                  </span>
+                </p>
+              </div>
+
+              <div className="p-4 bg-teal-50/70 border border-teal-100 rounded-2xl text-left space-y-2">
+                <p className="text-xs font-bold text-teal-900 flex items-center gap-1.5 font-sans">
+                  <Sparkles size={16} className="text-[#00A884]" />
+                  <span>អត្ថប្រយោជន៍នៃការពិនិត្យសុខភាព (Benefits):</span>
+                </p>
+                <ul className="text-xs text-slate-600 space-y-1 list-disc list-inside">
+                  <li>វាស់សម្ពាធឈាម និងចង្វាក់បេះដូងដោយស្វ័យប្រវត្តិ</li>
+                  <li>
+                    វាស់កម្រិតជាតិស្ករក្នុងឈាម និងសន្ទស្សន៍ម៉ាសរាងកាយ (BMI)
+                  </li>
+                  <li>វាយតម្លៃហានិភ័យបេះដូង ១០ ឆ្នាំ (CVD Risk Band)</li>
+                </ul>
+              </div>
+
+              {/* <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                <button
+                  onClick={() => navigate("/checkup")}
+                  className="flex-1 py-3.5 bg-[#00A884] hover:bg-[#008f70] text-white font-bold rounded-xl text-sm transition-all shadow-md active:scale-95 flex items-center justify-center gap-2"
+                >
+                  <PlusCircle size={18} />
+                  <span>ចាប់ផ្តើមពិនិត្យ (Start Checkup)</span>
+                </button>
+                <button
+                  onClick={() => navigate("/")}
+                  className="py-3.5 px-6 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm transition-all"
+                >
+                  ទំព័រដើម (Home)
+                </button>
+              </div> */}
+            </div>
+          </div>
+        </div>
+
+        <footer className="w-full max-w-7xl mx-auto flex items-center justify-between pt-4 shrink-0">
+          <div className="flex items-center gap-2 bg-slate-800/90 backdrop-blur text-white px-4 py-1.5 rounded-full text-xs font-semibold shadow-md border border-slate-700">
+            <Activity size={14} className="text-[#00A884]" />
+            <span>គណនីបានភ្ជាប់ (Account Synced)</span>
+          </div>
+          <button
+            onClick={() => setVoiceGuide(!voiceGuide)}
+            className="w-10 h-10 rounded-full bg-white text-slate-700 flex items-center justify-center shadow-md border border-slate-200 hover:bg-slate-50 transition-all active:scale-95"
+          >
+            {voiceGuide ? <Volume2 size={18} /> : <VolumeX size={18} />}
+          </button>
+        </footer>
+      </div>
+    );
+  }
+
+  // ── DATA PREPARATION FOR ACTIVE RECORDS ──
+  const v = selectedRecord.vitals || {};
+  const r = selectedRecord.result || {};
+
   const genderKhmer =
     selectedRecord.gender === "male" ? "ប្រុស (Male)" : "ស្រី (Female)";
 
@@ -328,7 +410,7 @@ export default function PatientProfilePage() {
   const glucoseStatus = getKhmerGlucoseLabel(r.glucose_category);
   const bmiStatus = getKhmerBmiLabel(r.bmi, r.bmi_category);
 
-  // SVG Chart helpers
+  // SVG Chart parameters
   const svgWidth = 560;
   const svgHeight = 170;
   const chartPad = 30;
@@ -360,7 +442,6 @@ export default function PatientProfilePage() {
     };
   });
 
-  // Calculate coordinates for SVG paths
   const getPoints = (
     key: "sbp" | "dbp" | "bmi" | "glu",
     min: number,
@@ -382,49 +463,7 @@ export default function PatientProfilePage() {
     <div className="min-h-[100dvh] w-full bg-[#073B35] text-slate-800 font-['Noto_Sans_Khmer',sans-serif] select-none flex flex-col justify-between p-3 sm:p-6 pb-28">
       <div className="w-full max-w-7xl mx-auto flex flex-col flex-1">
         {/* 1. Header with Kiosk Logo & Patient Capsule */}
-        <header className="w-full flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 py-2 mb-4 shrink-0 border-b border-teal-700/50 pb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-[#00A884] flex items-center justify-center shadow-lg border border-teal-300/30 shrink-0 overflow-hidden">
-              <img
-                src={logo}
-                alt="KCH"
-                className="w-full h-full object-contain p-1.5"
-              />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="font-['Moul'] text-lg sm:text-xl text-white tracking-wide drop-shadow-sm">
-                  ទូរសុខភាពសហគមន៍ខ្មែរ
-                </h1>
-                <span className="bg-[#00A884] text-white text-[10px] font-mono px-2 py-0.5 rounded-full font-bold">
-                  PORTAL
-                </span>
-              </div>
-              <p className="text-[11px] text-teal-200 font-medium">
-                ប្រវត្តិ និងនិន្នាការសុខភាពផ្ទាល់ខ្លួន (Patient Health
-                Dashboard)
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2.5 w-full sm:w-auto justify-between sm:justify-end">
-            <div className="flex items-center gap-2 bg-teal-900/80 backdrop-blur border border-teal-600/40 px-3.5 py-1.5 rounded-2xl text-xs text-white shadow-sm">
-              <User size={15} className="text-[#00A884]" />
-              <span className="font-bold">{patientName}</span>
-              <span className="text-teal-300/80 font-mono text-[11px]">
-                ({patientPhone})
-              </span>
-            </div>
-
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-1.5 bg-rose-600/80 hover:bg-rose-700 active:scale-95 transition-all text-white text-xs font-bold px-3 py-1.5 rounded-xl shadow-sm border border-rose-400/40"
-            >
-              <LogOut size={14} />
-              <span>ចាកចេញ</span>
-            </button>
-          </div>
-        </header>
+        {renderHeader()}
 
         {/* 2. KPI Summary Strip (Visits & Risk Overview) */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
@@ -542,7 +581,6 @@ export default function PatientProfilePage() {
                 viewBox={`0 0 ${svgWidth} ${svgHeight}`}
                 className="w-full h-full overflow-visible"
               >
-                {/* Grid guidelines */}
                 <line
                   x1={chartPad}
                   y1={chartPad}
@@ -570,7 +608,6 @@ export default function PatientProfilePage() {
                   strokeWidth="1"
                 />
 
-                {/* Graph Lines & Dots based on Active Tab */}
                 {activeMetricTab === "bp" && (
                   <>
                     <polyline
@@ -818,7 +855,7 @@ export default function PatientProfilePage() {
                     BMI
                   </span>
                   <span className="font-bold text-slate-900 text-base">
-                    {r.bmi ? r.bmi.toFixed(1) : "--"}
+                    {r.bmi ? Number(r.bmi).toFixed(1) : "--"}
                   </span>
                 </div>
               </div>
@@ -1048,7 +1085,7 @@ export default function PatientProfilePage() {
                       កំណត់សម្គាល់បន្ថែម (Clinical Protocol Notes):
                     </p>
                     <ul className="list-disc list-inside text-xs text-slate-600 space-y-1">
-                      {r.notes.map((note, index) => (
+                      {r.notes.map((note: string, index: number) => (
                         <li key={index}>{note}</li>
                       ))}
                     </ul>

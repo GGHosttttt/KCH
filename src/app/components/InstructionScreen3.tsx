@@ -75,7 +75,8 @@ export function InstructionScreen3() {
     setInputMsg("");
     updateVitals({ systolic_mmhg: v.systolic, diastolic_mmhg: v.diastolic, pulse_bpm: v.pulse });
     setStepStatus("bp", "done");
-    navigate("/instructions/review");
+    // navigate("/instructions/review");
+    navigate("/payment");
   };
 
   const skip = () => {
@@ -83,7 +84,8 @@ export function InstructionScreen3() {
     setBad(new Set());
     updateVitals({ systolic_mmhg: undefined, diastolic_mmhg: undefined, pulse_bpm: undefined });
     setStepStatus("bp", "skipped");
-    navigate("/instructions/review");
+    // navigate("/instructions/review");
+    navigate("/payment");
   };
 
   const nextField = () => {

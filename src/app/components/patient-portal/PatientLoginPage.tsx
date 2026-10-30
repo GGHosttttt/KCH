@@ -12,7 +12,8 @@ import {
   Activity,
 } from "lucide-react";
 import apiService from "../../../../services/apiService";
-import logo from "../../../../src/assets/KCH-white-logo.png";
+// import logo from "../../../../src/assets/KCH-white-logo.png";
+import logo from "../../../../src/assets/kch-kiosk-logo-white-v2.png";
 
 export default function PatientLoginPage() {
   const navigate = useNavigate();
@@ -109,7 +110,7 @@ export default function PatientLoginPage() {
       </div>
 
       <div className="absolute top-8 left-8 flex items-center space-x-4">
-        <div className="w-16 h-16 rounded-full flex items-center justify-center shadow-lg overflow-hidden">
+        <div className="w-16 h-16 rounded-full flex items-center justify-center overflow-hidden">
           <img
             src={logo}
             alt="Logo"

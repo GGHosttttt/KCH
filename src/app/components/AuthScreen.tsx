@@ -92,7 +92,7 @@ export function AuthScreen() {
       setSessionId(sessionData.session_id);
       setQrValue(
         sessionData.qr_url ||
-          `${frontend_origin}/pairing?session=${sessionData.session_id}`,
+          `${frontend_origin}/#/pairing?session=${sessionData.session_id}`,
       );
 
       // 3. Connect to WebSocket for instant pairing notifications

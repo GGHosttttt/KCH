@@ -1,22 +1,52 @@
 // src/components/Layout.tsx
 import { Outlet, useLocation, useNavigate } from "react-router";
-import { useEffect, useState, useRef } from "react";
-import { Volume2, VolumeX, LifeBuoy, AlertCircle } from "lucide-react";
+import { useEffect, useState, useRef, useCallback } from "react";
+import {
+  Volume2,
+  VolumeX,
+  LifeBuoy,
+  AlertCircle,
+  Bug,
+  RotateCcw,
+} from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import voiceGuide from "../../../services/voiceGuide";
+
+// Toggle to false when deploying to production
+const DEBUG_MODE = true;
+
+// Available limits for live testing (Default is 10 min)
+const TEST_LIMITS_MS: Record<string, number> = {
+  "10m": 10 * 60 * 1000,
+  "1m": 60 * 1000,
+  "30s": 30 * 1000,
+};
 
 export function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
   const [showHelpModal, setShowHelpModal] = useState(false);
+
+  // Active limit selection (can be toggled in debug HUD)
+  const [activeLimitKey, setActiveLimitKey] = useState<string>("10m");
+  const INACTIVITY_LIMIT_MS = TEST_LIMITS_MS[activeLimitKey];
+
+  // Debug metric states
+  const [idleDurationSec, setIdleDurationSec] = useState<number>(0);
+  const [lastActivityEvent, setLastActivityEvent] = useState<string>("init");
+
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastActiveTimestamp = useRef<number>(Date.now());
   const staffTaps = useRef<number[]>([]);
 
   // Hidden staff access: 5 taps on the top-centre edge within 3 s opens the control panel.
   const handleStaffTap = () => {
     const now = Date.now();
-    staffTaps.current = [...staffTaps.current.filter((t) => now - t < 3000), now];
+    staffTaps.current = [
+      ...staffTaps.current.filter((t) => now - t < 3000),
+      now,
+    ];
     if (staffTaps.current.length >= 5) {
       staffTaps.current = [];
       voiceGuide.stop();
@@ -25,82 +55,262 @@ export function Layout() {
   };
 
   const isHome = location.pathname === "/" || location.pathname === "";
-  const INACTIVITY_LIMIT_MS = 10 * 60 * 1000; // 10 minutes
 
   const getAuthToken = () => {
     return localStorage.getItem("access_token");
   };
 
-  const resetTimer = () => {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    const token = getAuthToken();
-    if (token || isHome) return;
+  // 1. Core Inactivity Handler using useCallback
+  const resetTimer = useCallback(
+    (triggerReason = "activity") => {
+      lastActiveTimestamp.current = Date.now();
+      if (DEBUG_MODE) {
+        setLastActivityEvent(triggerReason);
+        setIdleDurationSec(0);
+      }
 
-    timeoutRef.current = setTimeout(() => {
-      voiceGuide.stop();
-      navigate("/");
-    }, INACTIVITY_LIMIT_MS);
-  };
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
 
-  // 1. Listen for user activity
+      const token = getAuthToken();
+      if (token || isHome) {
+        return;
+      }
+
+      timeoutRef.current = setTimeout(() => {
+        console.warn(
+          `[Inactivity] Limit (${INACTIVITY_LIMIT_MS}ms) reached. Returning to Home.`,
+        );
+        voiceGuide.stop();
+        navigate("/");
+      }, INACTIVITY_LIMIT_MS);
+    },
+    [isHome, INACTIVITY_LIMIT_MS, navigate],
+  );
+
+  // 2. Filtered event listeners: ignores stationary hover & passive DOM scrolls
   useEffect(() => {
-    window.addEventListener("mousemove", resetTimer);
-    window.addEventListener("touchstart", resetTimer);
-    window.addEventListener("click", resetTimer);
-    window.addEventListener("keydown", resetTimer);
+    let lastThrottledTime = 0;
+    const THROTTLE_MS = 1000; // Reset at most once every second
+    const lastMousePos = { x: 0, y: 0 };
 
-    resetTimer();
+    const handleUserInteraction = (event: Event) => {
+      // 1. Filter out micro-jitter or static hover from mousemove
+      if (event instanceof MouseEvent && event.type === "mousemove") {
+        const dx = Math.abs(event.clientX - lastMousePos.x);
+        const dy = Math.abs(event.clientY - lastMousePos.y);
+
+        // Ignore tiny movements under 10px (e.g. vibrations or cursor on top of animated items)
+        if (dx < 10 && dy < 10) return;
+
+        lastMousePos.x = event.clientX;
+        lastMousePos.y = event.clientY;
+      }
+
+      const now = Date.now();
+      if (now - lastThrottledTime > THROTTLE_MS) {
+        lastThrottledTime = now;
+        resetTimer(event.type);
+      }
+    };
+
+    // Use explicit intentional user actions (wheel instead of window scroll)
+    const events = [
+      "pointerdown",
+      "mousemove",
+      "touchstart",
+      "touchmove",
+      "keydown",
+      "wheel",
+    ];
+
+    events.forEach((evt) =>
+      window.addEventListener(evt, handleUserInteraction, { passive: true }),
+    );
+
+    // Initial activation
+    resetTimer("mount");
 
     return () => {
-      window.removeEventListener("mousemove", resetTimer);
-      window.removeEventListener("touchstart", resetTimer);
-      window.removeEventListener("click", resetTimer);
-      window.removeEventListener("keydown", resetTimer);
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      events.forEach((evt) =>
+        window.removeEventListener(evt, handleUserInteraction),
+      );
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
     };
-  }, [location.pathname, isHome]);
+  }, [resetTimer]);
 
-  // 2. Play audio step whenever the screen/route changes
+  // 3. Live 1-second interval tracking both idle duration and time remaining
+  useEffect(() => {
+    if (!DEBUG_MODE) return;
+
+    const interval = setInterval(() => {
+      const token = getAuthToken();
+      if (isHome || token) {
+        setIdleDurationSec(0);
+        return;
+      }
+      const elapsedMs = Date.now() - lastActiveTimestamp.current;
+      setIdleDurationSec(Math.floor(elapsedMs / 1000));
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isHome]);
+
+  // 3. Reset timer specifically when the route changes
+  useEffect(() => {
+    resetTimer("route-change");
+  }, [location.pathname, resetTimer]);
+
+  // 4. Play audio step whenever the screen/route changes
   useEffect(() => {
     voiceGuide.playForRoute(location.pathname);
 
     return () => {
-      voiceGuide.stop(); // Stop audio if component unmounts
+      voiceGuide.stop();
     };
   }, [location.pathname]);
 
-  // 3. Handle Mute / Unmute Toggle
+  // 5. Handle Mute / Unmute Toggle
   const handleToggleAudio = () => {
     const nextState = !isAudioEnabled;
     setIsAudioEnabled(nextState);
     voiceGuide.setEnabled(nextState);
 
-    // If turned back on, replay current step's voice prompt
     if (nextState) {
       voiceGuide.playForRoute(location.pathname);
     }
   };
 
+  // Helper formatting mm:ss
+  const formatTime = (totalSeconds: number) => {
+    const safeSecs = Math.max(0, totalSeconds);
+    const mins = Math.floor(safeSecs / 60);
+    const secs = safeSecs % 60;
+    return `${mins}m ${secs < 10 ? "0" : ""}${secs}s`;
+  };
+
+  const limitSeconds = Math.floor(INACTIVITY_LIMIT_MS / 1000);
+  const remainingSeconds = Math.max(0, limitSeconds - idleDurationSec);
+  const idlePercentage = Math.min(100, (idleDurationSec / limitSeconds) * 100);
+
   return (
-    <div className="min-h-[100dvh] w-full bg-slate-900 text-slate-800 font-['Battambang'] overflow-hidden flex items-center justify-center p-0 sm:p-4 md:p-8 relative">
-      <div className="w-full max-w-6xl h-[100dvh] max-h-[800px] bg-slate-100 relative shadow-2xl overflow-hidden sm:rounded-3xl border-0 sm:border-8 border-slate-800 flex flex-col">
-        {/* Main Route Content */}
-        <Outlet />
+    <div className="min-h-[100dvh] w-full bg-slate-900 text-slate-800 font-['Battambang'] flex items-center justify-center p-0 sm:p-4 md:p-8 relative overflow-hidden">
+      {/* Visual Inactivity Comparison Debug HUD */}
+      {DEBUG_MODE && (
+        <aside className="fixed top-3 right-3 z-[200] bg-slate-950/90 text-slate-200 border border-slate-700/80 rounded-xl p-3 shadow-2xl font-mono text-xs w-72 backdrop-blur-md">
+          <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800">
+            <div className="flex items-center gap-1.5 font-bold text-teal-400">
+              <Bug className="w-4 h-4 text-amber-400" />
+              <span>INACTIVITY MONITOR</span>
+            </div>
+            {/* Quick limit switcher for testing */}
+            <div className="flex gap-1">
+              {Object.keys(TEST_LIMITS_MS).map((key) => (
+                <button
+                  key={key}
+                  onClick={() => {
+                    setActiveLimitKey(key);
+                    resetTimer(`switched-limit-${key}`);
+                  }}
+                  className={`px-1.5 py-0.5 rounded text-[10px] font-semibold transition-colors ${
+                    activeLimitKey === key
+                      ? "bg-teal-500 text-slate-950"
+                      : "bg-slate-800 text-slate-400 hover:bg-slate-700"
+                  }`}
+                >
+                  {key}
+                </button>
+              ))}
+            </div>
+          </div>
 
-        {/* Invisible staff hotspot (see handleStaffTap) */}
-        <div onPointerDown={handleStaffTap} className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-4 z-[60]" aria-hidden />
+          <div className="space-y-1.5 text-[11px]">
+            <div className="flex justify-between items-center">
+              <span className="text-slate-400">Status:</span>
+              <span
+                className={`font-semibold ${isHome || getAuthToken() ? "text-amber-400" : "text-emerald-400"}`}
+              >
+                {isHome
+                  ? "Disabled (Home)"
+                  : getAuthToken()
+                    ? "Bypassed (Token)"
+                    : "Monitoring"}
+              </span>
+            </div>
 
-    <div className="min-h-[100dvh] w-full bg-slate-900 text-slate-800 font-['Battambang'] flex items-center justify-center p-0 sm:p-4 md:p-8 relative">
+            <div className="flex justify-between items-center">
+              <span className="text-slate-400">Idle Elapsed:</span>
+              <span className="text-rose-400 font-bold">
+                {formatTime(idleDurationSec)}
+              </span>
+            </div>
+
+            <div className="flex justify-between items-center">
+              <span className="text-slate-400">Target Threshold:</span>
+              <span className="text-slate-200 font-bold">
+                {formatTime(limitSeconds)}
+              </span>
+            </div>
+
+            <div className="flex justify-between items-center">
+              <span className="text-slate-400">Time Remaining:</span>
+              <span className="text-teal-300 font-bold">
+                {formatTime(remainingSeconds)}
+              </span>
+            </div>
+
+            {/* Visual Progress Bar */}
+            <div className="w-full bg-slate-800 rounded-full h-2 mt-2 overflow-hidden border border-slate-700">
+              <div
+                className={`h-full transition-all duration-1000 ${
+                  idlePercentage > 80
+                    ? "bg-rose-500"
+                    : idlePercentage > 50
+                      ? "bg-amber-400"
+                      : "bg-teal-400"
+                }`}
+                style={{ width: `${idlePercentage}%` }}
+              />
+            </div>
+
+            <div className="pt-2 mt-2 border-t border-slate-800 flex justify-between items-center text-[10px] text-slate-400">
+              <span className="truncate max-w-[140px]">
+                Event:{" "}
+                <span className="text-teal-400">{lastActivityEvent}</span>
+              </span>
+              <button
+                onClick={() => resetTimer("manual-debug-reset")}
+                className="flex items-center gap-1 text-slate-300 hover:text-white bg-slate-800 px-1.5 py-0.5 rounded transition-colors"
+              >
+                <RotateCcw className="w-2.5 h-2.5" />
+                Reset
+              </button>
+            </div>
+          </div>
+        </aside>
+      )}
+
       {/* 
         Responsive Kiosk Wrapper:
         - Mobile: Full height, flex-1, inner-scrolling enabled
         - Desktop (sm+): Fixed 800px kiosk frame with rounded border
       */}
-      <div className="w-full max-w-6xl h-[100dvh] sm:h-[800px] sm:max-h-[800px] bg-slate-100 relative shadow-2xl sm:rounded-3xl border-0 sm:border-8 border-slate-800 flex flex-col overflow-hidden">
+      <div className="w-full max-w-6xl h-[150dvh] sm:h-[800px] sm:max-h-[800px] bg-slate-100 relative shadow-2xl sm:rounded-3xl border-0 sm:border-8 border-slate-800 flex flex-col overflow-hidden">
+        {/* Invisible staff hotspot (5 taps in 3s) */}
+        <div
+          onPointerDown={handleStaffTap}
+          className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 z-[60]"
+          aria-hidden
+        />
+
         {/* 
           Main Scroll Container for Outlet:
-          min-h-0 + flex-1 + overflow-y-auto ensures children (ResultScreen, ReceiptScreen) 
-          scroll smoothly on touch screens without getting trapped by parent bounds.
+          min-h-0 + flex-1 + overflow-y-auto ensures children scroll properly
         */}
         <div className="flex-1 w-full min-h-0 overflow-y-auto overflow-x-hidden relative">
           <Outlet />

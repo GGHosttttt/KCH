@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useNavigate, useSearchParams, useLocation } from "react-router";
+import { useEffect, useState, useRef } from "react";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import {
   ArrowLeft,
   X,
@@ -103,6 +103,38 @@ function getKhmerBmiLabel(bmi: number | null, cat?: string | null) {
   return { kh: "ទម្ងន់សមស្រប", en: "Normal", color: "text-emerald-700" };
 }
 
+function getKhmerCvdLabel(band?: string | null) {
+  const b = (band || "<5%").toLowerCase();
+  if (b.includes("5_to_10"))
+    return {
+      kh: "ហានិភ័យស្រាល",
+      en: "Mild Risk (5-10%)",
+      color: "text-teal-700",
+    };
+  if (b.includes("10_to_20"))
+    return {
+      kh: "ហានិភ័យមធ្យម",
+      en: "Moderate Risk (10-20%)",
+      color: "text-amber-700",
+    };
+  if (b.includes("20_to_30"))
+    return {
+      kh: "ហានិភ័យខ្ពស់",
+      en: "High Risk (20-30%)",
+      color: "text-orange-700",
+    };
+  if (b.includes(">=30") || b.includes("very_high"))
+    return {
+      kh: "ហានិភ័យខ្ពស់ខ្លាំង",
+      en: "Very High Risk (≥30%)",
+      color: "text-rose-700",
+    };
+  return { kh: "ហានិភ័យទាប", en: "Low Risk (<5%)", color: "text-emerald-700" };
+}
+
+// Configurable screen exit timeout
+const AUTO_EXIT_DEFAULT_SECONDS = 600;
+
 export function ReceiptScreen() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -133,7 +165,11 @@ export function ReceiptScreen() {
   const [loading, setLoading] = useState<boolean>(!initialRecord);
   const [error, setError] = useState<string | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
-  const [autoExitSeconds, setAutoExitSeconds] = useState(180);
+
+  const [autoExitSeconds, setAutoExitSeconds] = useState(
+    AUTO_EXIT_DEFAULT_SECONDS,
+  );
+  const isPrintingRef = useRef<boolean>(false);
 
   const frontend_origin =
     (window as any).kioskEnv?.getFrontOrigin?.() ||
@@ -143,6 +179,13 @@ export function ReceiptScreen() {
       : "http://localhost:5173");
 
   const fallbackName = sessionStorage.getItem("userName") || "Walk-in Patient";
+
+  const handleExit = () => {
+    voiceGuide.stop();
+    resetCheckup();
+    sessionStorage.clear();
+    navigate("/");
+  };
 
   useEffect(() => {
     if (record) return;
@@ -182,7 +225,7 @@ export function ReceiptScreen() {
     const activeId = record?.id || recordId;
     if (!activeId) return;
 
-    const targetUrl = `${frontend_origin}/#/results?record_id=${activeId}`;
+    const targetUrl = `${frontend_origin}/results?record_id=${activeId}`;
 
     QRCode.toDataURL(targetUrl, {
       width: 130,
@@ -198,13 +241,13 @@ export function ReceiptScreen() {
 
   useEffect(() => {
     const interval = setInterval(() => {
+      if (isPrintingRef.current) return;
       setAutoExitSeconds((prev) => {
         if (prev <= 1) {
           clearInterval(interval);
           handleExit();
           return 0;
         }
-
         return prev - 1;
       });
     }, 1000);
@@ -212,20 +255,24 @@ export function ReceiptScreen() {
     return () => clearInterval(interval);
   }, []);
 
-  const handleExit = () => {
-    voiceGuide.stop();
-    resetCheckup();
-    sessionStorage.clear();
-    navigate("/");
+  const handlePrint = () => {
+    isPrintingRef.current = true;
+    window.print();
+    setTimeout(() => {
+      isPrintingRef.current = false;
+      setAutoExitSeconds(AUTO_EXIT_DEFAULT_SECONDS);
+    }, 500);
   };
 
-  const handlePrint = () => {
-    window.print();
+  const formatDisplayTime = (totalSeconds: number) => {
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen w-full bg-slate-100 flex flex-col items-center justify-center gap-3 font-['Noto_Sans_Khmer',sans-serif]">
+      <div className="min-h-[100dvh] w-full bg-slate-100 flex flex-col items-center justify-center gap-3 font-['Noto_Sans_Khmer',sans-serif]">
         <Loader2 size={40} className="animate-spin text-teal-600" />
         <p className="text-slate-600 font-semibold text-sm">
           កំពុងរៀបចំវិក្កយបត្រលទ្ធផល...
@@ -236,7 +283,7 @@ export function ReceiptScreen() {
 
   if (error || !record) {
     return (
-      <div className="min-h-screen w-full bg-slate-100 flex flex-col items-center justify-center p-4 font-['Noto_Sans_Khmer',sans-serif]">
+      <div className="min-h-[100dvh] w-full bg-slate-100 flex flex-col items-center justify-center p-4 font-['Noto_Sans_Khmer',sans-serif]">
         <div className="bg-white p-6 rounded-3xl shadow-lg max-w-sm w-full text-center">
           <AlertCircle size={40} className="text-red-500 mx-auto mb-3" />
           <p className="text-slate-700 font-bold mb-4">{error}</p>
@@ -268,11 +315,12 @@ export function ReceiptScreen() {
   const bpStatus = getKhmerBpLabel(r.bp_category);
   const glucoseStatus = getKhmerGlucoseLabel(r.glucose_category);
   const bmiStatus = getKhmerBmiLabel(r.bmi, r.bmi_category);
+  const cvdStatus = getKhmerCvdLabel(r.cvd_risk_band);
 
   return (
-    <div className="w-full min-h-screen bg-slate-100 flex flex-col p-3 sm:p-6 pb-36 font-['Noto_Sans_Khmer',sans-serif] select-none print:p-0 print:bg-white">
+    <div className="w-full min-h-[100dvh] overflow-y-auto bg-slate-100 flex flex-col p-4 sm:p-6 pb-24 font-['Noto_Sans_Khmer',sans-serif] select-none print:p-0 print:bg-white print:block">
       {/* Top Header Bar */}
-      <header className="w-full max-w-5xl mx-auto flex items-center justify-between bg-white/95 backdrop-blur px-4 py-2.5 sm:px-5 sm:py-3 rounded-2xl shadow-sm border border-slate-200 shrink-0 print:hidden">
+      <header className="w-full max-w-5xl mx-auto flex items-center justify-between bg-white/95 backdrop-blur px-4 py-2.5 sm:px-5 sm:py-3 rounded-2xl shadow-sm border border-slate-200 shrink-0 print:hidden mb-4">
         <button
           onClick={() => navigate(-1)}
           className="flex items-center gap-1.5 sm:gap-2 text-teal-900 font-bold text-xs sm:text-sm hover:text-teal-700 transition-colors"
@@ -285,8 +333,8 @@ export function ReceiptScreen() {
           <span className="hidden sm:inline">
             អេក្រង់នឹងបិទក្នុង (Auto-exit in):
           </span>
-          <span className="font-mono bg-teal-50 text-teal-800 px-2 py-0.5 rounded-lg border border-teal-200 text-xs">
-            {`${String(Math.floor(autoExitSeconds / 60)).padStart(2, "0")}:${String(autoExitSeconds % 60).padStart(2, "0")}`}
+          <span className="font-mono bg-teal-50 text-teal-800 px-2 py-0.5 rounded-lg border border-teal-200 text-xs font-bold">
+            {formatDisplayTime(autoExitSeconds)}
           </span>
         </div>
 
@@ -300,7 +348,7 @@ export function ReceiptScreen() {
       </header>
 
       {/* Screen Title */}
-      <div className="text-center my-3 shrink-0 print:hidden">
+      <div className="text-center mb-6 shrink-0 print:hidden">
         <h1 className="font-['Moul'] text-xl sm:text-2xl text-[#0A4D44] drop-shadow-sm">
           វិក្កយបត្រលទ្ធផល
         </h1>
@@ -308,7 +356,7 @@ export function ReceiptScreen() {
       </div>
 
       {/* Main Grid: Fully Responsive Stacking */}
-      <main className="w-full max-w-5xl mx-auto flex flex-col lg:grid lg:grid-cols-12 gap-5 my-2 items-start print:block print:w-full print:max-w-none">
+      <main className="w-full max-w-5xl mx-auto flex flex-col lg:grid lg:grid-cols-12 gap-5 flex-1 items-start print:block print:w-full print:max-w-none">
         {/* Receipt Slip Column */}
         <div className="w-full lg:col-span-5 bg-white rounded-2xl shadow-lg border border-slate-300 p-4 sm:p-5 font-mono text-xs leading-relaxed print:m-0 print:shadow-none print:border-none print:w-[320px] print:mx-auto">
           <div className="text-center border-b border-dashed border-slate-300 pb-3 mb-3">
@@ -435,8 +483,8 @@ export function ReceiptScreen() {
               <span className="text-slate-500 font-sans">
                 កម្រិតហានិភ័យ ១០ឆ្នាំ:
               </span>
-              <span className="font-bold font-mono text-teal-800">
-                {r.cvd_risk_band || "<5%"}
+              <span className={`font-bold font-sans ${cvdStatus.color}`}>
+                {cvdStatus.kh} ({cvdStatus.en})
               </span>
             </div>
           </div>
@@ -509,12 +557,12 @@ export function ReceiptScreen() {
           </div>
 
           {/* Action Buttons */}
-          <div className="space-y-2.5">
+          <div className="space-y-3">
             <button
               onClick={handlePrint}
-              className="w-full py-3.5 bg-[#00A884] hover:bg-[#008f70] active:scale-[0.98] text-white font-bold rounded-xl shadow-md transition-all text-sm flex items-center justify-center gap-2"
+              className="w-full py-4 bg-[#00A884] hover:bg-[#008f70] active:scale-[0.98] text-white font-bold rounded-xl shadow-md transition-all text-sm flex items-center justify-center gap-2"
             >
-              <Printer size={18} />
+              <Printer size={20} />
               <span>បោះពុម្ពវិក្កយបត្រ (Print Now)</span>
             </button>
 

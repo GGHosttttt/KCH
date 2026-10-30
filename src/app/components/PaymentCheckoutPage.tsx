@@ -160,6 +160,9 @@ export default function PaymentCheckoutPage() {
           vitals: resolvedVitals || store.vitals,
           questionnaire: store.questionnaire,
         };
+        
+        console.log("=== Payload Data ===", payload);
+        console.log("Payload JSON:", JSON.stringify(payload, null, 2));
 
         const res = await apiService(
           "/kch-api/api/v1/assessment/submit?lang=km",
