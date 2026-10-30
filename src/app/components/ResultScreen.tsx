@@ -185,21 +185,24 @@ function getBmiTheme(bmi: number | null, cat?: string | null): LevelTheme {
 function getBpTheme(cat?: string | null): LevelTheme {
   const c = (cat || "").toLowerCase();
 
-  if (c.includes("optimal")) {
+  // 1. Ideal (< 120/80) - Dark Green / Emerald
+  if (c.includes("ideal")) {
     return {
-      cardBorder: "border-emerald-400",
+      cardBorder: "border-emerald-500",
       iconBg: "bg-emerald-100",
       iconColor: "text-emerald-700",
       badgeBg: "bg-emerald-100",
-      badgeBorder: "border-emerald-400",
+      badgeBorder: "border-emerald-500",
       badgeText: "text-emerald-900",
       boxBg: "bg-emerald-50/70",
       boxBorder: "border-emerald-200",
       khLabel: "ល្អឥតខ្ចោះ",
-      enLabel: "Optimal",
+      enLabel: "Ideal",
     };
   }
-  if (c.includes("normal")) {
+
+  // 2. Normal (120-129 / 80-84) - Light Green / Teal
+  if (c === "normal") {
     return {
       cardBorder: "border-teal-400",
       iconBg: "bg-teal-100",
@@ -213,39 +216,72 @@ function getBpTheme(cat?: string | null): LevelTheme {
       enLabel: "Normal",
     };
   }
-  if (c.includes("pre") || c.includes("elevated") || c.includes("grade 1")) {
+
+  // 3. Normal Systolic (130-139 / 85-89) - Yellow
+  if (c.includes("normal_systolic") || c.includes("normal systolic")) {
     return {
-      cardBorder: "border-amber-400",
-      iconBg: "bg-amber-100",
-      iconColor: "text-amber-700",
-      badgeBg: "bg-amber-100",
-      badgeBorder: "border-amber-400",
-      badgeText: "text-amber-900",
-      boxBg: "bg-amber-50/70",
-      boxBorder: "border-amber-200",
-      khLabel: "ប្រឈមឡើងសម្ពាធ",
-      enLabel: "Pre-hypertensive",
+      cardBorder: "border-yellow-400",
+      iconBg: "bg-yellow-100",
+      iconColor: "text-yellow-700",
+      badgeBg: "bg-yellow-100",
+      badgeBorder: "border-yellow-400",
+      badgeText: "text-yellow-900",
+      boxBg: "bg-yellow-50/70",
+      boxBorder: "border-yellow-200",
+      khLabel: "ធម្មតាកម្រិតខ្ពស់",
+      enLabel: "Normal Systolic",
     };
   }
-  if (
-    c.includes("grade 2") ||
-    c.includes("grade 3") ||
-    c.includes("hypertens") ||
-    c.includes("crisis")
-  ) {
+
+  // 4. Mild Hypertension (140-159 / 90-99) - Orange
+  if (c.includes("mild") || c.includes("isolated")) {
+    return {
+      cardBorder: "border-orange-400",
+      iconBg: "bg-orange-100",
+      iconColor: "text-orange-700",
+      badgeBg: "bg-orange-100",
+      badgeBorder: "border-orange-400",
+      badgeText: "text-orange-900",
+      boxBg: "bg-orange-50/70",
+      boxBorder: "border-orange-200",
+      khLabel: "លើសសម្ពាធឈាមកម្រិតស្រាល",
+      enLabel: "Mild Hypertension",
+    };
+  }
+
+  // 5. Moderate Hypertension (160-180 / 100-109) - Rose
+  if (c.includes("moderate")) {
     return {
       cardBorder: "border-rose-500",
       iconBg: "bg-rose-100",
       iconColor: "text-rose-700",
       badgeBg: "bg-rose-100",
-      badgeBorder: "border-rose-400",
+      badgeBorder: "border-rose-500",
       badgeText: "text-rose-900",
       boxBg: "bg-rose-50/70",
       boxBorder: "border-rose-200",
-      khLabel: "លើសសម្ពាធឈាម",
-      enLabel: "High BP",
+      khLabel: "លើសសម្ពាធឈាមកម្រិតមធ្យម",
+      enLabel: "Moderate Hypertension",
     };
   }
+
+  // 6. Severe Hypertension (> 180 / 109) - Red
+  if (c.includes("severe") || c.includes("crisis") || c.includes("emergency")) {
+    return {
+      cardBorder: "border-red-600",
+      iconBg: "bg-red-100",
+      iconColor: "text-red-700",
+      badgeBg: "bg-red-100",
+      badgeBorder: "border-red-600",
+      badgeText: "text-red-900",
+      boxBg: "bg-red-50/70",
+      boxBorder: "border-red-200",
+      khLabel: "លើសសម្ពាធឈាមកម្រិតធ្ងន់",
+      enLabel: "Severe Hypertension",
+    };
+  }
+
+  // Fallback
   return {
     cardBorder: "border-slate-300",
     iconBg: "bg-slate-100",
@@ -255,7 +291,7 @@ function getBpTheme(cat?: string | null): LevelTheme {
     badgeText: "text-slate-800",
     boxBg: "bg-slate-50",
     boxBorder: "border-slate-200",
-    khLabel: "បានវាស់រួច",
+    khLabel: "គ្មានកំណត់ត្រា",
     enLabel: "Recorded",
   };
 }
@@ -369,7 +405,7 @@ export function ResultScreen() {
           `/kch-api/api/v1/assessment/records/${recordId}`,
           "GET",
         );
-        
+
         const data: ScreeningRecordDetail = res?.data || res;
         if (!data || (!data.vitals && !data.result)) {
           throw new Error("មិនមានទិន្នន័យពិនិត្យសុខភាព (Record data is empty)");
@@ -518,7 +554,7 @@ export function ResultScreen() {
       ? "Random (RPG)"
       : "Non-invasive PPG";
 
-  const cvdTheme = getCvdTheme(r.cvd_risk_band);
+  // const cvdTheme = getCvdTheme(r.cvd_risk_band);
   const bmiTheme = getBmiTheme(r.bmi, r.bmi_category);
   const bpTheme = getBpTheme(r.bp_category);
   const glucoseTheme = getGlucoseTheme(r.glucose_category);
@@ -605,7 +641,7 @@ export function ResultScreen() {
               </div>
             </div>
 
-            <div className="mt-4 pt-3 border-t border-slate-100">
+            {/* <div className="mt-4 pt-3 border-t border-slate-100">
               <div
                 className={`w-full border py-2 px-2 rounded-xl text-center font-bold text-xs flex flex-col gap-0.5 ${cvdTheme.bgClass} ${cvdTheme.borderClass} ${cvdTheme.textClass}`}
               >
@@ -617,7 +653,7 @@ export function ResultScreen() {
                   ({cvdTheme.enLabel})
                 </span>
               </div>
-            </div>
+            </div> */}
           </motion.div>
 
           {/* Card 2: Body Composition */}

@@ -10,8 +10,8 @@ import { MeasureShell } from "./measure/MeasureShell";
 type Field = keyof typeof BP_LIMITS;
 
 const FIELDS: { key: Field; km: string; en: string; unit: string; normal: string }[] = [
-  { key: "systolic", km: "សម្ពាធលើ", en: "SYS / Systolic", unit: "mmHg", normal: "90 - 120" },
-  { key: "diastolic", km: "សម្ពាធក្រោម", en: "DIA / Diastolic", unit: "mmHg", normal: "60 - 80" },
+  { key: "systolic", km: "សម្ពាធលើ", en: "SYS / Systolic", unit: "mmHg", normal: "90 - 200" },
+  { key: "diastolic", km: "សម្ពាធក្រោម", en: "DIA / Diastolic", unit: "mmHg", normal: "60 - 150" },
   { key: "pulse", km: "ចង្វាក់បេះដូង", en: "PUL / Pulse", unit: "/min", normal: "60 - 100" },
 ];
 

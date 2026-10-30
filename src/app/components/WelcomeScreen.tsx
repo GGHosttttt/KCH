@@ -1,12 +1,20 @@
 import { useNavigate } from "react-router";
+import { useEffect } from "react";
 import { Play, Activity, Heart } from "lucide-react";
 import { motion } from "motion/react";
-// import logo from "../../../src/assets/KCH-white-logo.png";
 import logo from "../../../src/assets/kch-kiosk-logo-white-v2.png";
+import { useCheckupStore } from "../../stores/useCheckupStore";
 
 export function WelcomeScreen() {
   const navigate = useNavigate();
+  const { resetCheckup } = useCheckupStore();
+  useEffect(() => {
+    
+    resetCheckup()
+    sessionStorage.clear();
 
+    localStorage.clear();
+  }, []);
   return (
     <div className="relative flex flex-col items-center justify-center h-full w-full bg-gradient-to-br from-teal-800 to-teal-900 text-white p-8 overflow-hidden">
       {/* Background patterns */}
