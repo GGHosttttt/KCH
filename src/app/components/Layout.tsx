@@ -13,7 +13,7 @@ import { motion, AnimatePresence } from "motion/react";
 import voiceGuide from "../../../services/voiceGuide";
 
 // Toggle to false when deploying to production
-const DEBUG_MODE = true;
+const DEBUG_MODE = false;
 
 // Available limits for live testing (Default is 10 min)
 const TEST_LIMITS_MS: Record<string, number> = {

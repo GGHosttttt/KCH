@@ -43,27 +43,57 @@ interface ScreeningRecordDetail {
 }
 
 // ── Khmer Translation Helpers ──
+// ── Khmer Translation Helpers ──
 function getKhmerBpLabel(cat?: string | null) {
   const c = (cat || "").toLowerCase();
-  if (c.includes("optimal"))
-    return { kh: "ល្អឥតខ្ចោះ", en: "Optimal", color: "text-emerald-700" };
-  if (c.includes("normal"))
+
+  // 1. Ideal (< 120/80) - Dark Green
+  if (c.includes("ideal")) {
+    return { kh: "ល្អឥតខ្ចោះ", en: "Ideal", color: "text-emerald-700" };
+  }
+
+  // 2. Normal (120-129 / 80-84) - Light Green
+  if (c === "normal") {
     return { kh: "ធម្មតា", en: "Normal", color: "text-teal-700" };
-  if (c.includes("pre") || c.includes("elevated") || c.includes("grade 1")) {
+  }
+
+  // 3. Normal Systolic (130-139 / 85-89) - Yellow
+  if (c.includes("normal_systolic") || c.includes("normal systolic")) {
     return {
-      kh: "ប្រឈមឡើងសម្ពាធ",
-      en: "Pre-hypertensive",
-      color: "text-amber-700",
+      kh: "ធម្មតាកម្រិតខ្ពស់",
+      en: "Normal Systolic",
+      color: "text-yellow-700",
     };
   }
-  if (
-    c.includes("grade 2") ||
-    c.includes("grade 3") ||
-    c.includes("hypertens") ||
-    c.includes("crisis")
-  ) {
-    return { kh: "លើសសម្ពាធឈាម", en: "High BP", color: "text-rose-700" };
+
+  // 4. Mild Hypertension (140-159 / 90-99) - Orange
+  if (c.includes("mild") || c.includes("isolated")) {
+    return {
+      kh: "លើសសម្ពាធឈាមកម្រិតស្រាល",
+      en: "Mild Hypertension",
+      color: "text-orange-700",
+    };
   }
+
+  // 5. Moderate Hypertension (160-180 / 100-109) - Rose
+  if (c.includes("moderate")) {
+    return {
+      kh: "លើសសម្ពាធឈាមកម្រិតមធ្យម",
+      en: "Moderate Hypertension",
+      color: "text-rose-700",
+    };
+  }
+
+  // 6. Severe Hypertension (> 180 / 109) - Red
+  if (c.includes("severe") || c.includes("crisis") || c.includes("emergency")) {
+    return {
+      kh: "លើសសម្ពាធឈាមកម្រិតធ្ងន់",
+      en: "Severe Hypertension",
+      color: "text-red-700",
+    };
+  }
+
+  // Fallback
   return { kh: "បានវាស់រួច", en: "Recorded", color: "text-slate-700" };
 }
 
@@ -225,7 +255,7 @@ export function ReceiptScreen() {
     const activeId = record?.id || recordId;
     if (!activeId) return;
 
-    const targetUrl = `${frontend_origin}/results?record_id=${activeId}`;
+    const targetUrl = `${frontend_origin}/#/results?record_id=${activeId}`;
 
     QRCode.toDataURL(targetUrl, {
       width: 130,

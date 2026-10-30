@@ -8,7 +8,7 @@ export const ROUTE_AUDIO_MAP = {
   "/questions/diabetes": "/audio/questions_diabetes.mp3",
   "/handwash": "/audio/handwash.mp3",
   "/instructions/1": "/audio/instruction_scale.mp3",
-  "/instructions/2": "/audio/instruction_ppg.mp3",
+  // "/instructions/2": "/audio/instruction_ppg.mp3",
   "/instructions/3": "/audio/instruction_bp.mp3",
   "/payment": "/audio/payment.mp3",
   "/processing": "/audio/processing.mp3",
