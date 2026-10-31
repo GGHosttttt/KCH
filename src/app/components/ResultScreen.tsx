@@ -72,6 +72,8 @@ type CvdTheme = {
   enLabel: string;
 };
 
+// ── Color & Theme Helpers (Aligned with Backend Categories) ──
+
 function getCvdTheme(band?: string | null): CvdTheme {
   const b = (band || "<5%").toLowerCase();
 
@@ -140,7 +142,7 @@ function getBmiTheme(bmi: number | null, cat?: string | null): LevelTheme {
       enLabel: "Underweight",
     };
   }
-  if (c.includes("over") || (val >= 23 && val < 25)) {
+  if (c.includes("over") || (val >= 23 && val < 27.5)) {
     return {
       cardBorder: "border-amber-400",
       iconBg: "bg-amber-100",
@@ -154,7 +156,7 @@ function getBmiTheme(bmi: number | null, cat?: string | null): LevelTheme {
       enLabel: "Overweight",
     };
   }
-  if (c.includes("obese") || val >= 25) {
+  if (c.includes("obese") || val >= 27.5) {
     return {
       cardBorder: "border-rose-400",
       iconBg: "bg-rose-100",
@@ -185,8 +187,7 @@ function getBmiTheme(bmi: number | null, cat?: string | null): LevelTheme {
 function getBpTheme(cat?: string | null): LevelTheme {
   const c = (cat || "").toLowerCase();
 
-  // 1. Ideal (< 120/80) - Dark Green / Emerald
-  if (c.includes("ideal")) {
+  if (c.includes("optimal")) {
     return {
       cardBorder: "border-emerald-500",
       iconBg: "bg-emerald-100",
@@ -197,11 +198,9 @@ function getBpTheme(cat?: string | null): LevelTheme {
       boxBg: "bg-emerald-50/70",
       boxBorder: "border-emerald-200",
       khLabel: "ល្អឥតខ្ចោះ",
-      enLabel: "Ideal",
+      enLabel: "Optimal",
     };
   }
-
-  // 2. Normal (120-129 / 80-84) - Light Green / Teal
   if (c === "normal") {
     return {
       cardBorder: "border-teal-400",
@@ -216,9 +215,7 @@ function getBpTheme(cat?: string | null): LevelTheme {
       enLabel: "Normal",
     };
   }
-
-  // 3. Normal Systolic (130-139 / 85-89) - Yellow
-  if (c.includes("normal_systolic") || c.includes("normal systolic")) {
+  if (c.includes("high_normal") || c.includes("normal_systolic")) {
     return {
       cardBorder: "border-yellow-400",
       iconBg: "bg-yellow-100",
@@ -232,9 +229,11 @@ function getBpTheme(cat?: string | null): LevelTheme {
       enLabel: "Normal Systolic",
     };
   }
-
-  // 4. Mild Hypertension (140-159 / 90-99) - Orange
-  if (c.includes("mild") || c.includes("isolated")) {
+  if (
+    c.includes("grade_1") ||
+    c.includes("isolated_systolic") ||
+    c.includes("mild")
+  ) {
     return {
       cardBorder: "border-orange-400",
       iconBg: "bg-orange-100",
@@ -244,29 +243,25 @@ function getBpTheme(cat?: string | null): LevelTheme {
       badgeText: "text-orange-900",
       boxBg: "bg-orange-50/70",
       boxBorder: "border-orange-200",
-      khLabel: "លើសសម្ពាធឈាមកម្រិតស្រាល",
-      enLabel: "Mild Hypertension",
+      khLabel: "ប្រឈម / កម្រិត១",
+      enLabel: "Grade 1 HTN",
     };
   }
-
-  // 5. Moderate Hypertension (160-180 / 100-109) - Rose
-  if (c.includes("moderate")) {
+  if (c.includes("grade_2") || c.includes("moderate")) {
     return {
-      cardBorder: "border-rose-500",
-      iconBg: "bg-rose-100",
-      iconColor: "text-rose-700",
-      badgeBg: "bg-rose-100",
-      badgeBorder: "border-rose-500",
-      badgeText: "text-rose-900",
-      boxBg: "bg-rose-50/70",
-      boxBorder: "border-rose-200",
-      khLabel: "លើសសម្ពាធឈាមកម្រិតមធ្យម",
-      enLabel: "Moderate Hypertension",
+      cardBorder: "border-orange-500",
+      iconBg: "bg-orange-200",
+      iconColor: "text-orange-800",
+      badgeBg: "bg-orange-200",
+      badgeBorder: "border-orange-500",
+      badgeText: "text-orange-900",
+      boxBg: "bg-orange-100/70",
+      boxBorder: "border-orange-300",
+      khLabel: "លើសឈាមកម្រិត២",
+      enLabel: "Grade 2 HTN",
     };
   }
-
-  // 6. Severe Hypertension (> 180 / 109) - Red
-  if (c.includes("severe") || c.includes("crisis") || c.includes("emergency")) {
+  if (c.includes("crisis") || c.includes("severe") || c.includes("emergency")) {
     return {
       cardBorder: "border-red-600",
       iconBg: "bg-red-100",
@@ -276,12 +271,10 @@ function getBpTheme(cat?: string | null): LevelTheme {
       badgeText: "text-red-900",
       boxBg: "bg-red-50/70",
       boxBorder: "border-red-200",
-      khLabel: "លើសសម្ពាធឈាមកម្រិតធ្ងន់",
-      enLabel: "Severe Hypertension",
+      khLabel: "កម្រិតសង្គ្រោះបន្ទាន់",
+      enLabel: "Crisis / Emergency",
     };
   }
-
-  // Fallback
   return {
     cardBorder: "border-slate-300",
     iconBg: "bg-slate-100",
@@ -291,7 +284,7 @@ function getBpTheme(cat?: string | null): LevelTheme {
     badgeText: "text-slate-800",
     boxBg: "bg-slate-50",
     boxBorder: "border-slate-200",
-    khLabel: "គ្មានកំណត់ត្រា",
+    khLabel: "បានវាស់រួច",
     enLabel: "Recorded",
   };
 }

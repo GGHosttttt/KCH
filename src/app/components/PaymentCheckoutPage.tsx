@@ -160,7 +160,7 @@ export default function PaymentCheckoutPage() {
           vitals: resolvedVitals || store.vitals,
           questionnaire: store.questionnaire,
         };
-        
+
         console.log("=== Payload Data ===", payload);
         console.log("Payload JSON:", JSON.stringify(payload, null, 2));
 
@@ -336,14 +336,20 @@ export default function PaymentCheckoutPage() {
   };
 
   return (
-    <div className="relative h-full w-full bg-gradient-to-br from-teal-800 to-teal-900 flex flex-col justify-between p-4 md:p-6 font-['Noto_Sans_Khmer',sans-serif] text-slate-800">
+    // <div className="relative h-full w-full bg-gradient-to-br from-teal-800 to-teal-900 flex flex-col justify-between p-4 md:p-6 font-['Noto_Sans_Khmer',sans-serif] text-slate-800">
+    //   {/* Background patterns */}
+    //   <div className="absolute inset-0 opacity-10 pointer-events-none flex flex-wrap gap-12 items-center justify-center">
+    //     {[...Array(20)].map((_, i) => (
+    //       <Activity key={i} size={48} className="text-teal-200" />
+    //     ))}
+    //   </div>
+    <div className="min-h-screen bg-gradient-to-br from-teal-800 to-teal-900 flex flex-col justify-between p-4 font-['Noto_Sans_Khmer',sans-serif] relative overflow-hidden">
       {/* Background patterns */}
       <div className="absolute inset-0 opacity-10 pointer-events-none flex flex-wrap gap-12 items-center justify-center">
         {[...Array(20)].map((_, i) => (
           <Activity key={i} size={48} className="text-teal-200" />
         ))}
-      </div>
-
+      </div>  
       {/* Main Payment Container */}
       <main className="w-full max-w-xl mx-auto my-auto z-10">
         <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-teal-800/20">
